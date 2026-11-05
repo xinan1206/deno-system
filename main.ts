@@ -60,7 +60,7 @@ try {
   } catch (e2) {
     try {
       // 尝试 3：直接从根目录找
-      htmlContent = await Deno.readTextFile("index.html");
+      htmlContent = await Deno.readTextFile("index_cloud.html");
     } catch (e3) {
       console.error("依然找不到 index.html，请检查 GitHub 仓库里的文件位置！");
       htmlContent = "<h1>Error: index.html not found</h1>";
