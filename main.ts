@@ -1,24 +1,22 @@
 Deno.serve(async (req) => {
   const url = new URL(req.url);
 
-  // 1. 如果访问首页，读取并返回网页
+  // 1. 处理网页访问
   if (req.method === 'GET' && url.pathname === '/') {
     try {
-      // 尝试找同级
       const html = await Deno.readTextFile(new URL("./index.html", import.meta.url));
       return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     } catch (e) {
       try {
-        // 尝试找上一级（防止 main.ts 放进了子文件夹）
         const html = await Deno.readTextFile(new URL("../index.html", import.meta.url));
         return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
       } catch (e2) {
-        return new Response(`<h1>报错：找不到 index.html 文件</h1><p>请检查 GitHub 仓库里的文件名是否叫 index.html，并且和 main.ts 放在同一个目录下。</p>`, { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+        return new Response("找不到 index.html 文件，请检查 GitHub 仓库的文件名！", { status: 500 });
       }
     }
   }
 
-  // 2. 代理 AI 请求
+  // 2. 处理 AI 代理请求
   if (req.method === 'POST' && url.pathname === '/api/proxy') {
     const cors = {
       'Access-Control-Allow-Origin': '*',
