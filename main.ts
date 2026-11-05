@@ -5,7 +5,7 @@ try {
 } catch (e) {
   try {
     // 尝试 2：寻找上一级目录（应对 main.ts 被放到了 src 文件夹里的情况）
-    htmlContent = await Deno.readTextFile(new URL("../index.html", import.meta.url));
+    htmlContent = await Deno.readTextFile(new URL("../index_cloud.html", import.meta.url));
   } catch (e2) {
     try {
       // 尝试 3：直接从根目录找
