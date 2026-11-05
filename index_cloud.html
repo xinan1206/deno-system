@@ -1,0 +1,2907 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能课堂互动系统 - 登录</title>
+<meta name="referrer" content="no-referrer">
+<script src="https://cdn.bootcdn.net/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+<script>
+  if (typeof XLSX === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.full.min.js"><\/script>');
+  }
+  if (typeof echarts === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"><\/script>');
+  }
+</script>
+<style>
+  :root {
+    --bg-dark: #040710;
+    --bg-grid: rgba(56, 189, 248, 0.03);
+    --glass-bg: rgba(15, 23, 42, 0.7);
+    --glass-border: rgba(56, 189, 248, 0.2);
+    --text-main: #e2e8f0;
+    --text-muted: #94a3b8;
+    --primary: #3b82f6;
+    --primary-glow: rgba(59, 130, 246, 0.6);
+    --success: #10b981;
+    --success-glow: rgba(16, 185, 129, 0.6);
+    --warning: #f59e0b;
+    --warning-glow: rgba(245, 158, 11, 0.6);
+    --danger: #ef4444;
+    --danger-glow: rgba(239, 68, 68, 0.6);
+    --flash-color: #facc15;
+    --flash-bg: linear-gradient(135deg, #fef08a, #f59e0b);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; background-color: var(--bg-dark); color: var(--text-main); overflow-x: hidden; }
+  body { background-image: linear-gradient(var(--bg-grid) 1px, transparent 1px), linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px); background-size: 40px 40px; background-position: center center; }
+  body::before, body::after { content: ''; position: fixed; border-radius: 50%; filter: blur(120px); z-index: -1; opacity: 0.3; animation: floatBg 20s infinite alternate ease-in-out; }
+  body::before { background: #1e3a8a; width: 60vw; height: 60vw; top: -10%; left: -10%; }
+  body::after { background: #581c87; width: 50vw; height: 50vw; bottom: -10%; right: -10%; animation-delay: -10s; }
+  @keyframes floatBg { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(10%, 10%) scale(1.2); } }
+
+  #login-page { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(4, 7, 16, 0.9); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); z-index: 9999; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease; }
+  .login-box { width: 400px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 20px rgba(56,189,248,0.05); position: relative; }
+  .login-box::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, transparent, #38bdf8, transparent); }
+  .login-box h2 { text-align: center; margin: 0 0 30px 0; font-size: 26px; letter-spacing: 2px; background: linear-gradient(90deg, #38bdf8, #c084fc); -webkit-background-clip: text; color: transparent; }
+  .form-group { margin-bottom: 20px; }
+  .form-group label { display: block; font-size: 14px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-size: 15px; outline: none; transition: all 0.3s; font-family: inherit; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #38bdf8; box-shadow: 0 0 10px rgba(56,189,248,0.3); }
+  .form-group select option { background: #0f172a; color: #fff; }
+  .password-input-wrapper { position: relative; display: flex; align-items: center; }
+  .password-input-wrapper input { padding-right: 45px; }
+  .toggle-eye { position: absolute; right: 15px; cursor: pointer; color: var(--text-muted); font-size: 18px; user-select: none; transition: color 0.2s; display: flex; align-items: center; justify-content: center; }
+  .toggle-eye:hover { color: #38bdf8; }
+  .login-btn { width: 100%; padding: 14px; border-radius: 8px; border: none; font-size: 16px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; margin-top: 10px; box-shadow: 0 4px 15px rgba(59,130,246,0.4); transition: all 0.3s; }
+  .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59,130,246,0.6); }
+  .login-btn:active { transform: translateY(0); }
+  .login-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+  #main-page, #admin-page, #student-page { display: none; height: 100%; overflow-y: auto; }
+  .topbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 30px; background: var(--glass-bg); backdrop-filter: blur(20px); border-bottom: 1px solid var(--glass-border); position: sticky; top: 0; z-index: 50; box-shadow: 0 4px 30px rgba(0,0,0,0.5); }
+  .confirm-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; font-size: 15px; font-weight: 700; color: #fff; background: linear-gradient(135deg, #2563eb, #3b82f6); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; user-select: none; box-shadow: 0 0 15px var(--primary-glow); transition: all 0.3s; }
+  .confirm-btn:hover { transform: translateY(-2px); box-shadow: 0 0 25px var(--primary-glow); filter: brightness(1.1); }
+  .confirm-btn:active { transform: translateY(0); }
+
+  .file-name { flex: 1 1 100%; width: 100%; order: -1; margin-bottom: 4px; padding: 12px 20px; display: flex; align-items: center; justify-content: center; position: relative; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 10px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.15), inset 0 0 15px rgba(56, 189, 248, 0.05); }
+  .file-name::before, .file-name::after { content: ''; position: absolute; left: 15%; right: 15%; height: 1px; background: linear-gradient(90deg, transparent, #38bdf8, transparent); }
+  .file-name::before { top: 0; } .file-name::after { bottom: 0; }
+  .file-name.empty { font-size: 16px; font-weight: 500; color: var(--text-muted); background: transparent; border-style: dashed; border-color: rgba(255,255,255,0.2); box-shadow: none; }
+  .file-name.empty::before, .file-name.empty::after { display: none; }
+  #fileNameText { max-width: 100%; font-size: 28px; font-weight: 900; letter-spacing: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: linear-gradient(90deg, #38bdf8, #c084fc, #38bdf8); background-size: 200% auto; color: transparent; -webkit-background-clip: text; background-clip: text; animation: textShine 4s linear infinite; filter: drop-shadow(0 2px 8px rgba(56, 189, 248, 0.6)); }
+  .file-name.empty #fileNameText { background: none; color: inherit; animation: none; filter: none; font-size: 16px; font-weight: 500; }
+  @keyframes textShine { to { background-position: 200% center; } }
+
+  .notify-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 5px; }
+  .notify-icon { font-size: 24px; color: #cbd5e1; transition: color 0.3s; }
+  .notify-wrapper:hover .notify-icon { color: #38bdf8; }
+  .notify-badge { position: absolute; top: -2px; right: -6px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-shadow: 0 0 8px rgba(239,68,68,0.6); transform: scale(0); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  .notify-badge.show { transform: scale(1); }
+
+  .user-dropdown { position: relative; display: inline-block; margin-left: auto; }
+  .user-info-badge { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 20px; font-size: 14px; font-weight: 600; color: #38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); white-space: nowrap; cursor: pointer; transition: all 0.3s; user-select: none; }
+  .user-info-badge:hover { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+  .user-info-badge .arrow { font-size: 10px; margin-left: 4px; transition: transform 0.3s; }
+  .user-info-badge.active .arrow { transform: rotate(180deg); }
+  .dropdown-menu { position: absolute; top: 120%; right: 0; min-width: 140px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); border-radius: 10px; padding: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; z-index: 100; opacity: 0; transform: translateY(-10px); transition: opacity 0.2s, transform 0.2s; }
+  .dropdown-menu.show { display: block; opacity: 1; transform: translateY(0); }
+  .dropdown-item { padding: 10px 15px; font-size: 14px; font-weight: 600; color: #cbd5e1; border-radius: 6px; cursor: pointer; transition: all 0.2s; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .dropdown-item:hover { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+  .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 20px 30px 10px; }
+  .btn { font-family: inherit; font-size: 15px; font-weight: 700; padding: 11px 26px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; user-select: none; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); position: relative; overflow: hidden; text-align: center; display: inline-block; text-decoration: none; }
+  .btn:active:not(:disabled) { transform: scale(0.96); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
+  .btn.primary { background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: #6366f1; }
+  .btn.primary:not(:disabled):hover { background: #6366f1; color: #fff; box-shadow: 0 0 20px rgba(99, 102, 241, 0.6); }
+  .btn.ok { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: #f59e0b; }
+  .btn.ok:not(:disabled):hover { background: #f59e0b; color: #fff; box-shadow: 0 0 20px rgba(245, 158, 11, 0.6); }
+  .btn.green { background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: #10b981; }
+  .btn.green:not(:disabled):hover { background: #10b981; color: #fff; box-shadow: 0 0 20px rgba(16, 185, 129, 0.6); }
+  .btn.red { background: rgba(239, 68, 68, 0.15); color: #f87171; border-color: #ef4444; }
+  .btn.red:not(:disabled):hover { background: #ef4444; color: #fff; box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
+  .btn.ghost { background: rgba(255, 255, 255, 0.05); color: #cbd5e1; border-color: rgba(255, 255, 255, 0.2); }
+  .btn.ghost:not(:disabled):hover { background: rgba(255, 255, 255, 0.15); color: #fff; border-color: #fff; }
+  .btn.purple { background: rgba(192, 132, 252, 0.15); color: #d8b4fe; border-color: #c084fc; }
+  .btn.purple:not(:disabled):hover { background: #c084fc; color: #fff; box-shadow: 0 0 20px rgba(192, 132, 252, 0.6); }
+  .btn.blue { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: #38bdf8; }
+  .btn.blue:not(:disabled):hover { background: #38bdf8; color: #fff; box-shadow: 0 0 20px rgba(56, 189, 248, 0.6); }
+
+  .hint { padding: 4px 30px 20px; font-size: 14px; color: var(--text-muted); min-height: 30px; font-weight: 500; letter-spacing: 0.5px; transition: color 0.3s; }
+  .hint.active { color: var(--warning); text-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; padding: 0 30px 80px; }
+  .card { position: relative; display: flex; align-items: center; justify-content: center; min-height: 90px; padding: 24px 10px 14px; background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(10px); border: 2px solid rgba(56, 189, 248, 0.35); border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.03); cursor: pointer; transition: all 0.1s linear; overflow: hidden; }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; width: 18px; height: 3px; background: #38bdf8; opacity: 0.6; }
+  .card::after { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 18px; background: #38bdf8; opacity: 0.6; }
+  .card:hover:not(.flash):not(.stopped):not(.chosen) { background: rgba(30, 41, 59, 1); border-color: rgba(56, 189, 248, 0.8); transform: translateY(-4px); box-shadow: 0 12px 24px -8px rgba(56, 189, 248, 0.5); }
+  .card .name { font-size: 20px; font-weight: 800; color: #f1f5f9; letter-spacing: 2px; word-break: break-all; }
+  .card .badge { position: absolute; top: 8px; font-size: 12px; font-weight: 700; line-height: 1; padding: 5px 8px; border-radius: 6px; }
+  .card .badge.ask { left: 8px; color: #60a5fa; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); }
+  .card .badge.ask::before { content: "问"; opacity: 0.7; margin-right: 2px; }
+  .card .badge.pts { right: 8px; color: #fbbf24; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
+  .card .badge.pts::before { content: "分"; opacity: 0.7; margin-right: 2px; }
+  .card.flash { background: var(--flash-bg); border-color: #fff; transform: scale(1.15) translateY(-6px); z-index: 10; box-shadow: 0 0 20px #fff, 0 0 40px var(--flash-color), 0 0 80px var(--flash-color), 0 0 150px #eab308; }
+  .card.flash .name { color: #422006; text-shadow: 0 0 8px #fff; font-size: 22px; }
+  .card.flash .badge { background: rgba(66, 32, 6, 0.8); border-color: #fef08a; color: #fef08a; }
+  .card.stopped { background: var(--flash-bg); border-color: #fff; transform: scale(1.15); z-index: 10; animation: pulseGlow 1.2s infinite alternate; }
+  .card.stopped .name { color: #422006; text-shadow: 0 0 10px #fff; font-size: 22px; }
+  .card.stopped .badge { background: rgba(66, 32, 6, 0.8); border-color: #fef08a; color: #fef08a; }
+  @keyframes pulseGlow { 0% { box-shadow: 0 0 20px #fff, 0 0 40px var(--flash-color), inset 0 0 20px rgba(255,255,255,0.8); transform: scale(1.12) translateY(-4px); } 100% { box-shadow: 0 0 40px #fff, 0 0 80px var(--flash-color), 0 0 150px #eab308; transform: scale(1.18) translateY(-8px); } }
+  .card.chosen { background: rgba(16, 185, 129, 0.25); border-color: #10b981; box-shadow: 0 0 30px var(--success-glow); animation: popIn 0.4s; z-index: 5; }
+  .card.chosen .name { color: #34d399; text-shadow: 0 0 15px rgba(52, 211, 153, 0.8); }
+  @keyframes popIn { 0% { transform: scale(0.8); opacity: 0.5; } 70% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+
+  .toast { position: fixed; left: 50%; bottom: 40px; transform: translate(-50%, 30px) scale(0.9); background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); color: #fff; font-size: 15px; font-weight: 600; padding: 14px 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 10000; box-shadow: 0 20px 40px rgba(0,0,0,0.6); text-align: center; max-width: 85%; width: max-content; line-height: 1.5; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  .toast.warn { background: rgba(127, 29, 29, 0.95); border-color: rgba(239, 68, 68, 0.5); box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 30px var(--danger-glow); }
+
+  .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 10000; opacity: 0; transition: opacity 0.3s; }
+  .modal-overlay.show { display: flex; opacity: 1; }
+  .modal-content { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 30px; width: 450px; max-width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.5); transform: scale(0.9); transition: transform 0.3s; }
+  .modal-overlay.show .modal-content { transform: scale(1); }
+  .modal-content h3 { margin: 0 0 20px 0; text-align: center; font-size: 20px; color: #38bdf8; letter-spacing: 1px; }
+  .modal-btn-group { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-btn-group button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+  .modal-btn-group .close-btn { background: rgba(255,255,255,0.1); color: #cbd5e1; }
+  .modal-btn-group .close-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+  #student-page { display: none; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 10vh; }
+  .student-card { background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(56,189,248,0.3); border-radius: 20px; padding: 40px; width: 800px; max-width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); backdrop-filter: blur(15px); }
+  .score-card { background: rgba(0,0,0,0.3); border: 1px solid rgba(56,189,248,0.2); border-radius: 16px; padding: 40px; margin-top: 20px; text-align: center; }
+  .score-card .val { font-size: 72px; font-weight: 900; color: #fbbf24; text-shadow: 0 0 25px rgba(245,158,11,0.6); margin: 15px 0; }
+  .score-card .sub-val { font-size: 18px; color: #94a3b8; }
+
+  .msg-list { max-height: 400px; overflow-y: auto; margin: 10px 0; }
+  .msg-item { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 15px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; position: relative; }
+  .msg-item:hover { background: rgba(56,189,248,0.1); border-color: rgba(56,189,248,0.3); }
+  .msg-item-header { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); margin-bottom: 5px; }
+  .msg-item-title { font-size: 15px; font-weight: 700; color: #38bdf8; margin-bottom: 5px; }
+  .msg-item-preview { font-size: 14px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg-item-detail { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 14px; color: #e2e8f0; line-height: 1.6; }
+  .msg-item.expanded .msg-item-detail { display: block; }
+  .msg-item.expanded .msg-item-preview { display: none; }
+  .msg-empty { text-align: center; color: var(--text-muted); padding: 30px 0; }
+  .unread-dot { position: absolute; top: 15px; right: 15px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; box-shadow: 0 0 5px #ef4444; }
+  .msg-item.expanded .unread-dot { display: none; }
+
+  .searchable-select { position: relative; width: 100%; }
+  .searchable-select input { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-size: 15px; outline: none; transition: all 0.3s; box-sizing: border-box; cursor: text; }
+  .searchable-select input:focus { border-color: #38bdf8; box-shadow: 0 0 10px rgba(56,189,248,0.3); }
+  .searchable-select .options-container { position: absolute; top: 105%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); border-radius: 8px; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; }
+  .searchable-select .options-container.show { display: block; }
+  .searchable-select .option-item { padding: 10px 15px; font-size: 14px; color: #cbd5e1; cursor: pointer; transition: background 0.2s; }
+  .searchable-select .option-item:hover { background: rgba(56, 189, 248, 0.2); color: #fff; }
+  .searchable-select .option-item.no-result { color: var(--text-muted); text-align: center; cursor: default; }
+  .searchable-select .option-item.no-result:hover { background: transparent; color: var(--text-muted); }
+
+  .dash-filters { background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; backdrop-filter: blur(10px); }
+  .dash-filters .f-group { display: flex; flex-direction: column; gap: 6px; }
+  .dash-filters label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .dash-filters select, .dash-filters input { height: 34px; border: 1px solid var(--glass-border); border-radius: 6px; padding: 0 10px; font-size: 13px; background: rgba(15, 23, 42, 0.8); color: #38bdf8; outline: none; min-width: 120px; transition: all 0.3s; }
+  .dash-filters select:focus, .dash-filters input:focus { border-color: #38bdf8; box-shadow: 0 0 10px rgba(56,189,248,0.3); }
+  .dash-filters select option { background: #0f172a; color: #fff; }
+
+  .dash-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+  .dash-kpi { background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; backdrop-filter: blur(10px); }
+  .dash-kpi .k { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+  .dash-kpi .v { font-size: 26px; font-weight: 900; color: #38bdf8; margin: 4px 0; text-shadow: 0 0 15px rgba(56,189,248,0.3); }
+  .dash-kpi .s { font-size: 12px; color: #64748b; }
+
+  .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .chart-box { background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; backdrop-filter: blur(10px); display: flex; flex-direction: column; }
+  .chart-box h4 { margin: 0 0 4px 0; font-size: 16px; color: #e2e8f0; border-left: 4px solid #38bdf8; padding-left: 10px; }
+  .chart-box .hint { font-size: 12px; color: var(--text-muted); padding: 0; margin-bottom: 12px; padding-left: 14px; }
+  .echarts-dom { width: 100%; height: 320px; }
+  .text-box { grid-column: 1 / -1; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.3); }
+  .text-box h4 { border-left-color: #10b981; }
+  .advice-content { font-size: 15px; line-height: 1.8; color: #cbd5e1; padding: 10px; }
+  .advice-content span.highlight { color: #fbbf24; font-weight: 700; }
+  .advice-content span.danger { color: #f87171; font-weight: 700; }
+
+  .dash-table-wrap { max-height: 400px; overflow: auto; border: 1px solid var(--glass-border); border-radius: 8px; }
+  .dash-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .dash-table th, .dash-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; white-space: nowrap; }
+  .dash-table th { background: rgba(0,0,0,0.3); color: #38bdf8; font-weight: 600; position: sticky; top: 0; z-index: 10; cursor: default; }
+  .dash-table tr:hover td { background: rgba(56,189,248,0.05); }
+  .dash-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .dash-table th.num .sort-btn { justify-content: flex-end; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .t-good { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+  .t-ok { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+  .t-warn { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+  .t-bad { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+  .t-none { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+
+  .sort-btn { display: inline-flex; align-items: center; gap: 4px; background: transparent; border: none; padding: 0; font: inherit; font-weight: 600; color: inherit; cursor: pointer; user-select: none; transition: filter 0.2s; }
+  .sort-btn:hover { filter: brightness(1.35); text-decoration: underline; }
+  .sort-arrow { font-size: 10px; opacity: 0.35; transition: opacity 0.2s, color 0.2s; }
+  .sort-btn.active .sort-arrow { opacity: 1; color: #fbbf24; }
+
+  .admin-layout { display: flex; height: calc(100vh - 73px); }
+  .admin-sidebar { width: 220px; background: var(--glass-bg); border-right: 1px solid var(--glass-border); padding: 20px 10px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+  .sidebar-item { padding: 14px 20px; border-radius: 10px; font-size: 15px; font-weight: 700; color: #cbd5e1; cursor: pointer; transition: all 0.3s; border: 1px solid transparent; display: flex; align-items: center; gap: 10px; }
+  .sidebar-item:hover { background: rgba(56,189,248,0.05); color: #fff; }
+  .sidebar-item.active { background: rgba(56,189,248,0.15); color: #38bdf8; border-color: rgba(56,189,248,0.3); box-shadow: 0 0 15px rgba(56,189,248,0.1); }
+  .admin-content { flex: 1; padding: 20px 30px; overflow-y: auto; }
+  .file-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
+  .file-card { background: rgba(30, 41, 59, 0.6); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; position: relative; overflow: hidden; transition: all 0.3s; backdrop-filter: blur(10px); }
+  .file-card:hover { border-color: #38bdf8; box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(56,189,248,0.15); transform: translateY(-4px); }
+  .file-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, #38bdf8, #c084fc); opacity: 0.8; }
+  .file-card h4 { margin: 0 0 10px 0; font-size: 20px; color: #f1f5f9; display: flex; align-items: center; gap: 10px; }
+  .file-card p { margin: 0 0 20px 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .file-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .file-actions .btn { flex: 1; padding: 10px; font-size: 14px; min-width: 80px; }
+  .excel-preview-container { width: 90vw; max-width: 1200px; height: 85vh; background: #f3f4f6; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+  .excel-toolbar { background: #1e293b; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+  .excel-toolbar h3 { margin: 0; font-size: 16px; color: #e2e8f0; }
+  .excel-toolbar .close-btn { background: transparent; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; transition: color 0.2s; }
+  .excel-toolbar .close-btn:hover { color: #f87171; }
+  .excel-sheet-area { flex: 1; overflow: auto; background: #ffffff; margin: 10px; border: 1px solid #cbd5e1; border-radius: 4px; }
+  .excel-table { width: max-content; min-width: 100%; border-collapse: collapse; font-family: 'Calibri', 'Microsoft YaHei', sans-serif; font-size: 13px; color: #000; }
+  .excel-table th, .excel-table td { border: 1px solid #e2e8f0; padding: 4px 8px; white-space: nowrap; }
+  .excel-table th { background: #f1f5f9; color: #475569; font-weight: 600; text-align: center; }
+  .excel-col-header { background: #f8fafc !important; color: #64748b !important; font-weight: normal !important; position: sticky; top: 0; z-index: 10; border-color: #cbd5e1 !important; }
+  .excel-row-header { background: #f8fafc !important; color: #64748b !important; font-weight: normal !important; text-align: center !important; position: sticky; left: 0; z-index: 10; border-color: #cbd5e1 !important; }
+  .excel-corner { position: sticky; top: 0; left: 0; z-index: 20; background: #f8fafc !important; border-color: #cbd5e1 !important; }
+  .excel-table tr:hover td { background: #eff6ff; }
+
+  @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  .raise-btn { position: fixed; bottom: 40px; right: 40px; padding: 16px 32px; font-size: 20px; font-weight: 900; color: #fff; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 50px; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4); cursor: pointer; z-index: 10001; transition: all 0.3s; animation: bounce 2s infinite; display: none; }
+  .raise-btn:disabled { background: #64748b; cursor: not-allowed; animation: none; box-shadow: none; }
+
+  .raise-panel { position: fixed; top: 150px; right: 20px; width: 280px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid var(--warning); border-radius: 12px; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; display: none; transition: width 0.3s, height 0.3s, border-radius 0.3s; user-select: none; }
+  .raise-panel-header { background: rgba(245, 158, 11, 0.2); padding: 12px 16px; border-bottom: 1px solid rgba(245, 158, 11, 0.3); display: flex; justify-content: space-between; align-items: center; cursor: move; }
+  .raise-panel-title { font-weight: 800; color: #fbbf24; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+  .raise-count { background: #ef4444; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; }
+  .raise-list { max-height: 300px; overflow-y: auto; padding: 10px; }
+  .raise-item { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+  .raise-item:hover { border-color: #38bdf8; background: rgba(56,189,248,0.1); }
+  .raise-item-header { display: flex; justify-content: space-between; align-items: center; }
+  .raise-item-name { font-weight: bold; color: #e2e8f0; font-size: 15px; }
+  .raise-item-time { font-size: 11px; color: #94a3b8; }
+  .raise-item-tip { font-size: 12px; color: #38bdf8; margin-top: 4px; }
+  .raise-empty { text-align: center; color: #94a3b8; font-size: 13px; padding: 20px 0; }
+  .raise-panel.minimized { width: 60px; height: 60px; border-radius: 50%; border-color: #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,0.6); cursor: move; }
+  .raise-panel.minimized .raise-panel-header { display: none; }
+  .raise-panel.minimized .raise-list { display: none; }
+  .raise-panel.minimized .raise-panel-minimized-content { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 24px; position: relative; }
+  .raise-panel.minimized .minimized-badge { position: absolute; top: 0px; right: 0px; background: #ef4444; color: #fff; font-size: 14px; font-weight: bold; min-width: 22px; height: 22px; border-radius: 11px; display: flex; align-items: center; justify-content: center; }
+  .raise-panel-minimized-content { display: none; }
+  .panel-btn { background: rgba(255,255,255,0.1); border: none; color: #fff; width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 12px; }
+  .panel-btn:hover { background: rgba(255,255,255,0.2); }
+  .panel-btn.clear-btn:hover { background: rgba(239,68,68,0.3); color: #f87171; }
+  .panel-btn.refresh-btn:hover { background: rgba(56,189,248,0.3); color: #38bdf8; }
+  @keyframes spinOnce {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .panel-btn.spinning { animation: spinOnce 0.6s linear; }
+
+  @media (max-width: 768px) {
+    #fileNameText { font-size: 22px; }
+    .raise-panel { top: 180px; right: 10px; width: 240px; }
+    .student-card { padding: 20px; }
+    .topbar { padding: 12px 16px; gap: 12px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px; padding: 0 16px 60px; }
+    .toolbar { padding: 16px 16px 8px; gap: 10px; }
+    .btn { padding: 10px 16px; font-size: 14px; flex: 1 1 auto; }
+    .hint { padding: 4px 16px 16px; }
+    .dash-kpis { grid-template-columns: repeat(2, 1fr); }
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .admin-layout { flex-direction: column; height: auto; }
+    .admin-sidebar { width: 100%; flex-direction: row; overflow-x: auto; padding: 10px; border-right: none; border-bottom: 1px solid var(--glass-border); }
+    .sidebar-item { padding: 10px 16px; white-space: nowrap; }
+    .admin-content { padding: 16px; }
+    .file-cards { grid-template-columns: 1fr; gap: 16px; }
+    .file-card { padding: 20px; }
+    .file-actions { flex-direction: column; }
+  }
+  /* ============ AI 助教浮窗 ============ */
+  .ai-agent-fab {
+    position: fixed; bottom: 100px; right: 30px;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #38bdf8);
+    color: #fff; font-size: 26px; border: none; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+    z-index: 9997; transition: all 0.25s;
+  }
+  .ai-agent-fab:hover { transform: scale(1.08); box-shadow: 0 8px 28px rgba(56, 189, 248, 0.7); }
+
+  .ai-agent-panel {
+    position: fixed; bottom: 170px; right: 30px;
+    width: 380px; max-width: calc(100vw - 40px);
+    height: 520px; max-height: calc(100vh - 200px);
+    background: rgba(15, 23, 42, 0.97);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    z-index: 9998;
+    display: none; flex-direction: column; overflow: hidden;
+  }
+  .ai-agent-panel.show { display: flex; }
+
+  .ai-agent-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px;
+    background: rgba(99, 102, 241, 0.15);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+    cursor: move; user-select: none;
+  }
+  .ai-agent-title { font-weight: 800; color: #a5b4fc; font-size: 15px; }
+  .ai-agent-actions { display: flex; gap: 6px; }
+  .ai-agent-btn {
+    background: rgba(255,255,255,0.1); border: none; color: #cbd5e1;
+    width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; transition: all 0.2s;
+  }
+  .ai-agent-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+  .ai-agent-messages {
+    flex: 1; overflow-y: auto; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .ai-agent-welcome {
+    font-size: 13px; color: #94a3b8; line-height: 1.7;
+    background: rgba(56,189,248,0.05); padding: 10px 12px;
+    border-radius: 8px; border: 1px dashed rgba(56,189,248,0.3);
+  }
+  .ai-msg {
+    padding: 9px 12px; border-radius: 10px; font-size: 14px;
+    line-height: 1.55; word-break: break-word; white-space: pre-wrap;
+    max-width: 92%;
+  }
+  .ai-msg.user {
+    background: rgba(99, 102, 241, 0.25);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    color: #e0e7ff; align-self: flex-end;
+  }
+  .ai-msg.assistant {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #e2e8f0; align-self: flex-start;
+  }
+  .ai-msg.tool {
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    color: #6ee7b7; font-size: 12px; align-self: flex-start;
+    font-family: ui-monospace, monospace;
+  }
+  .ai-msg.error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5; align-self: flex-start;
+  }
+  .ai-msg.loading::after { content: '...'; animation: aiBlink 1s infinite; }
+  @keyframes aiBlink { 50% { opacity: 0.2; } }
+
+  .ai-agent-input-wrap {
+    display: flex; gap: 8px; padding: 10px 12px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.2);
+  }
+  #ai-agent-input {
+    flex: 1; resize: none; max-height: 90px;
+    background: rgba(0,0,0,0.3); color: #fff;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; padding: 8px 10px;
+    font-size: 14px; font-family: inherit; outline: none;
+  }
+  #ai-agent-input:focus { border-color: #38bdf8; }
+  .ai-agent-send {
+    background: linear-gradient(135deg, #6366f1, #38bdf8);
+    color: #fff; border: none; border-radius: 8px;
+    padding: 0 16px; font-weight: 700; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .ai-agent-send:hover { filter: brightness(1.1); }
+  .ai-agent-send:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<!-- ================== 登录层 ================== -->
+<div id="login-page">
+  <div class="login-box">
+    <h2>系统登录</h2>
+    <div class="form-group">
+      <label>身份</label>
+      <select id="login-role" onchange="handleRoleChange()">
+        <option value="student">学生</option>
+        <option value="teacher">教师</option>
+        <option value="admin">管理员</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>姓名</label>
+      <input type="text" id="login-name" placeholder="请输入姓名" oninput="this.value = this.value.replace(/\s/g, '')" />
+    </div>
+    <div class="form-group">
+      <label id="login-id-label">学号</label>
+      <div class="password-input-wrapper">
+        <input type="password" id="login-id" placeholder="请输入学号" />
+        <span class="toggle-eye" id="toggleEye" onclick="togglePasswordVisibility()" title="显示/隐藏">👁️</span>
+      </div>
+    </div>
+    <button class="login-btn" id="login-btn" onclick="handleLogin()">进 入 系 统</button>
+  </div>
+</div>
+
+<!-- ================== 教师主页面 ================== -->
+<div id="main-page">
+  <div class="topbar">
+    <div class="file-name empty" id="fileName">
+      <span id="fileNameText">等待加载班级...</span>
+    </div>
+    <button id="confirmClassBtn" class="confirm-btn" onclick="onConfirmClass()">✓ 确定加载名单</button>
+    <div class="control-group">
+      <label>班级：</label>
+      <select id="classSelect" class="ctrl-select" style="min-width: 200px; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(15, 23, 42, 0.8); color: #38bdf8; outline: none;">
+        <option value="">加载班级中...</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>课程：</label>
+      <select id="courseSelect" class="ctrl-select" style="padding: 9px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(15, 23, 42, 0.8); color: #38bdf8; outline: none;" disabled><option value="">加载中...</option></select>
+    </div>
+    <div class="control-group">
+      <label>章节：</label>
+      <select id="chapterSelect" class="ctrl-select" style="padding: 9px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(15, 23, 42, 0.8); color: #38bdf8; outline: none;" disabled><option value="">请先选课程</option></select>
+    </div>
+    <div class="notify-wrapper" onclick="showMsgList('teacher')">
+      <span class="notify-icon">🔔</span>
+      <span class="notify-badge" id="teacher-notify-badge">0</span>
+    </div>
+    <div class="user-dropdown">
+      <div class="user-info-badge" id="teacher-info-badge" style="display: none;" onclick="toggleDropdown('teacher-info-badge', 'teacher-dropdown')">
+        👨‍🏫 教师：<span id="current-teacher-name"></span> <span class="arrow">▼</span>
+      </div>
+      <div class="dropdown-menu" id="teacher-dropdown">
+        <div class="dropdown-item" onclick="location.reload()">🚪 退出登录</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button id="pickBtn" class="btn primary" disabled>🎲 开始选人</button>
+    <button id="confirmBtn" class="btn ok" disabled>✓ 确定选择</button>
+    <button id="correctBtn" class="btn green" disabled>✓ 答对了</button>
+    <button id="wrongBtn" class="btn red" disabled>✗ 答错了</button>
+    <button id="undoBtn" class="btn ghost" disabled>↩ 撤销操作</button>
+    <button id="exportBtn" class="btn purple" disabled>📥 导出明细</button>
+    <button id="analysisBtn" class="btn blue" style="margin-left: auto;" onclick="openTeacherAnalysis()">📊 我的学情分析</button>
+    <button id="sendMsgBtn" class="btn blue" onclick="openTeacherSendMsg()">✉️ 发送消息</button>
+  </div>
+  <div class="hint" id="hint">请先选择班级、课程、章节，然后点击“确定加载名单”获取学生与成绩数据。</div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- ================== 学生专属主页面 ================== -->
+<div id="student-page">
+  <div class="topbar" style="width: 100%;">
+    <div style="font-size: 20px; font-weight: 900; color: #38bdf8;">🎓 学生个人中心</div>
+    <div class="user-dropdown">
+      <div class="user-info-badge" id="student-info-badge" onclick="toggleDropdown('student-info-badge', 'student-dropdown')">
+        🎓 学生：<span id="current-student-name"></span> <span class="arrow">▼</span>
+      </div>
+      <div class="dropdown-menu" id="student-dropdown">
+        <div class="dropdown-item" onclick="location.reload()">🚪 退出登录</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <label style="font-size: 18px; font-weight: 600; color: #94a3b8;">选择课程查看成绩</label>
+      <div class="notify-wrapper" onclick="showMsgList('student')" title="查看消息">
+        <span class="notify-icon" style="font-size: 24px;">🔔</span>
+        <span class="notify-badge" id="student-notify-badge">0</span>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom: 20px;">
+      <select id="student-course-select" class="ctrl-select" style="width: 100%; padding: 14px 16px; font-size: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; outline: none;" onchange="loadStudentScore()"></select>
+    </div>
+    <div class="score-card">
+      <div class="sub-val">当前课程积分（答对题数）</div>
+      <div class="val" id="student-score">--</div>
+      <div class="sub-val" style="margin-top: 15px;">总答题数：<span id="student-total" style="color:#e2e8f0;font-weight:700;">--</span></div>
+    </div>
+    <div style="display: flex; gap: 15px; margin-top: 30px;">
+      <button class="btn primary" style="flex:1; padding: 16px; font-size: 16px;" onclick="openStudentSendMsg()">✉️ 给老师留言</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================== 教师端：举手面板 ================== -->
+<div id="teacherRaisePanel" class="raise-panel">
+  <div class="raise-panel-header" id="raisePanelHeader">
+    <span class="raise-panel-title">🙋 举手列表 <span id="raiseCountBadge" class="raise-count">0</span></span>
+    <div style="display: flex; gap: 8px;">
+      <button id="raiseRefreshBtn" class="panel-btn refresh-btn" onclick="manualRefreshRaise(); event.stopPropagation();" title="刷新举手列表">🔄</button>
+      <button class="panel-btn clear-btn" onclick="clearAllRaise(); event.stopPropagation();" title="一键清零">🧹</button>
+      <button class="panel-btn" onclick="toggleMinimizeRaisePanel(); event.stopPropagation();" title="最小化">➖</button>
+    </div>
+  </div>
+  <div id="raiseListContainer" class="raise-list">
+    <div class="raise-empty">暂无学生举手</div>
+  </div>
+  <div class="raise-panel-minimized-content" id="minimizedContent">
+    <span>🙋</span>
+    <span class="minimized-badge" id="minimizedBadge">0</span>
+  </div>
+</div>
+
+<!-- ================== 学生端：举手按钮 ================== -->
+<button id="raiseHandBtn" class="raise-btn" onclick="studentRaiseHand()">
+  🙋 老师，我举手！
+</button>
+
+<!-- ================== 教师学情分析大屏 ================== -->
+<div class="modal-overlay" id="teacher-analysis-modal">
+  <div class="modal-content" style="width: 96vw; max-width: 1600px; height: 90vh; max-height: 900px; padding: 20px; display: flex; flex-direction: column; background: var(--bg-dark);">
+    <h3 style="margin: 0 0 15px 0;">📈 我的学情分析 <span style="font-size:14px;color:#94a3b8;font-weight:normal;margin-left:10px;">(已锁定为当前教师数据，提供多维筛选)</span></h3>
+    <div style="flex:1; overflow-y: auto; padding-right: 5px;">
+      <div class="dash-filters" id="t-dash-filters">
+        <div class="f-group"><label>开始日期</label><input type="date" id="t-fFrom"></div>
+        <div class="f-group"><label>结束日期</label><input type="date" id="t-fTo"></div>
+        <div class="f-group"><label>课程</label><select id="t-fCourse"><option value="">全部课程</option></select></div>
+        <div class="f-group"><label>章节</label><select id="t-fChapter"><option value="">全部章节</option></select></div>
+        <div class="f-group"><label>班级</label><select id="t-fClass"><option value="">全部班级</option></select></div>
+        <div class="f-group"><label>结果</label><select id="t-fResult"><option value="">全部</option><option value="正确">正确</option><option value="错误">错误</option></select></div>
+        <div class="f-group"><label>学生搜索</label><input type="text" id="t-fStu" placeholder="姓名/学号..."></div>
+        <div class="f-group"><label>&nbsp;</label><button class="btn ghost" style="height: 34px; padding: 0 16px;" onclick="resetTeacherFilters()">重置</button></div>
+      </div>
+      <div class="dash-kpis" id="t-dash-kpis"></div>
+      <div class="dashboard-grid">
+        <div class="chart-box" style="grid-column: 1 / -1;">
+          <h4>① 互动趋势</h4>
+          <div class="hint">按日统计：答题量柱状 + 正确率折线，看课堂节奏与效果是否同步。</div>
+          <div id="t-chart-trend" class="echarts-dom"></div>
+        </div>
+        <div class="chart-box">
+          <h4>② 章节掌握度</h4>
+          <div class="hint">横向条形升序排列，最上面就是需要补讲的薄弱章节（样本 &lt; 5 题标注“样本不足”）</div>
+          <div id="t-chart-chapter" class="echarts-dom"></div>
+        </div>
+        <div class="chart-box">
+          <h4>③ 班级综合对比</h4>
+          <div class="hint">人均答题量、正确率、参与覆盖率三项对照。</div>
+          <div id="t-chart-class" class="echarts-dom"></div>
+        </div>
+        <div class="chart-box">
+          <h4>④ 学生画像四象限</h4>
+          <div class="hint">横轴答题量、纵轴正确率。右下=积极参与但学不会（优先辅导）；左上=会但不参与。</div>
+          <div id="t-chart-scatter" class="echarts-dom"></div>
+        </div>
+        <div class="chart-box">
+          <h4>⑤ 班级 × 章节热力图</h4>
+          <div class="hint">精准定位“哪个班的哪一章”出了教学问题。颜色越绿越好，越红越差。</div>
+          <div id="t-chart-heatmap" class="echarts-dom"></div>
+        </div>
+        <div class="chart-box text-box" style="grid-column: 1 / -1;">
+          <h4>🤖 智能教学建议诊断</h4>
+          <div class="advice-content" id="t-teaching-advice"></div>
+        </div>
+        <div class="chart-box" style="grid-column: 1 / -1;">
+          <h4>⑥ 学生分层明细表 (点击表头排序)</h4>
+          <div class="dash-table-wrap">
+            <table class="dash-table" id="t-dash-table">
+              <thead>
+                <tr>
+                  <th data-key="id">学号</th>
+                  <th data-key="name">姓名</th>
+                  <th data-key="cls">班级</th>
+                  <th data-key="total" class="num">答题量</th>
+                  <th data-key="correct" class="num">正确数</th>
+                  <th data-key="acc" class="num">正确率%</th>
+                  <th data-key="last">最近互动</th>
+                  <th data-key="tag">分层</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-btn-group" style="flex: none; margin-top: 15px;">
+      <button class="close-btn" style="background:#ef4444;color:#fff;border:none;" onclick="closeTeacherAnalysis()">关闭大屏</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================== 教师发送消息弹窗 ================== -->
+<div class="modal-overlay" id="teacher-send-msg-modal">
+  <div class="modal-content">
+    <h3>✉️ 发送通知消息</h3>
+    <div class="form-group">
+      <label>选择班级</label>
+      <select id="t-msg-class" class="ctrl-select" style="width: 100%; min-width: auto;" onchange="loadTMsgStudents()"></select>
+    </div>
+    <div class="form-group">
+      <label>选择接收学生 <span style="font-size:12px;color:#94a3b8;">(勾选班级可全选)</span></label>
+      <div style="margin-bottom: 5px;">
+        <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer; font-size:14px; color:#38bdf8;">
+          <input type="checkbox" id="t-msg-select-all" onchange="toggleAllStudents('t-msg-list', this)"> 全选本班
+        </label>
+      </div>
+      <div class="multi-select-box" id="t-msg-list"></div>
+    </div>
+    <div class="form-group">
+      <label>相关课程</label>
+      <select id="t-msg-course" class="ctrl-select" style="width: 100%; min-width: auto;"></select>
+    </div>
+    <div class="form-group">
+      <label>消息内容</label>
+      <textarea id="t-msg-content" rows="4" placeholder="请输入要发送的内容..."></textarea>
+    </div>
+    <div class="modal-btn-group">
+      <button class="close-btn" onclick="document.getElementById('teacher-send-msg-modal').classList.remove('show')">取消</button>
+      <button class="btn primary" onclick="submitTeacherMsg()">发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================== 管理员主页面 ================== -->
+<div id="admin-page">
+  <div class="topbar">
+    <div style="font-size: 20px; font-weight: 900; letter-spacing: 2px; color: #38bdf8; display: flex; align-items: center; gap: 10px;">
+      <span>⚙️</span> 系统管理后台
+    </div>
+    <div class="user-dropdown">
+      <div class="user-info-badge" id="admin-info-badge" style="display: none;" onclick="toggleDropdown('admin-info-badge', 'admin-dropdown')">
+        🛡️ 管理员：<span id="current-admin-name"></span> <span class="arrow">▼</span>
+      </div>
+      <div class="dropdown-menu" id="admin-dropdown">
+        <div class="dropdown-item" onclick="location.reload()">🚪 退出登录</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-layout">
+    <div class="admin-sidebar">
+      <div class="sidebar-item active" onclick="switchAdminTab('manage')">📁 文件管理</div>
+      <div class="sidebar-item" onclick="switchAdminTab('dashboard')">📊 数据大屏</div>
+    </div>
+    <div class="admin-content">
+      <div id="admin-manage-panel">
+        <h3 style="margin-top: 0; margin-bottom: 20px; color: #e2e8f0;">基础数据管理</h3>
+        <div class="file-cards">
+          <div class="file-card">
+            <h4>📚 课程数据</h4>
+            <p>课程.xlsx（包含所有课程及章节信息）</p>
+            <div class="file-actions">
+              <button class="btn primary" onclick="previewFile('https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-course-data/main/%E8%AF%BE%E7%A8%8B.xlsx', '课程.xlsx')">🔍 查询</button>
+              <a class="btn ghost" href="https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-course-data/main/%E8%AF%BE%E7%A8%8B.xlsx" download="课程.xlsx">📥 下载</a>
+            </div>
+          </div>
+          <div class="file-card">
+            <h4>👨‍🏫 教师数据</h4>
+            <p>teacher.xlsx（工号、姓名）</p>
+            <div class="file-actions">
+              <button class="btn primary" onclick="previewFile('https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-identity-data/main/teacher.xlsx', 'teacher.xlsx')">🔍 查询</button>
+              <a class="btn ghost" href="https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-identity-data/main/teacher.xlsx" download="teacher.xlsx">📥 下载</a>
+            </div>
+          </div>
+          <div class="file-card">
+            <h4>🎓 学生数据</h4>
+            <p>student.xlsx（班级、学号、姓名）</p>
+            <div class="file-actions">
+              <button class="btn primary" onclick="previewFile('https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-identity-data/main/student.xlsx', 'student.xlsx')">🔍 查询</button>
+              <a class="btn ghost" href="https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-identity-data/main/student.xlsx" download="student.xlsx">📥 下载</a>
+            </div>
+          </div>
+          <div class="file-card">
+            <h4>🏫 班级数据</h4>
+            <p>class.xlsx（班级列表）</p>
+            <div class="file-actions">
+              <button class="btn primary" onclick="previewFile('https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-class-data/main/class.xlsx', 'class.xlsx')">🔍 查询</button>
+              <a class="btn ghost" href="https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-class-data/main/class.xlsx" download="class.xlsx">📥 下载</a>
+            </div>
+          </div>
+          <div class="file-card">
+            <h4>🌐 代码托管</h4>
+            <p>访问 GitHub 仓库（可在此修改底层的 Excel 数据源并覆盖原文件）</p>
+            <div class="file-actions">
+              <a class="btn primary" href="https://github.com/" target="_blank" style="display: flex; align-items: center; justify-content: center; text-decoration: none; gap: 6px;">
+                🚀 前往 GitHub
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="admin-dashboard-panel" style="display: none;">
+        <div class="dash-filters">
+          <div class="f-group"><label>开始日期</label><input type="date" id="fFrom"></div>
+          <div class="f-group"><label>结束日期</label><input type="date" id="fTo"></div>
+          <div class="f-group"><label>课程</label><select id="fCourse"><option value="">全部课程</option></select></div>
+          <div class="f-group"><label>章节</label><select id="fChapter"><option value="">全部章节</option></select></div>
+          <div class="f-group"><label>班级</label><select id="fClass"><option value="">全部班级</option></select></div>
+          <div class="f-group"><label>教师</label><select id="fTeacher"><option value="">全部教师</option></select></div>
+          <div class="f-group"><label>结果</label><select id="fResult"><option value="">全部</option><option value="正确">正确</option><option value="错误">错误</option></select></div>
+          <div class="f-group">
+            <label>被选中情况</label>
+            <select id="fSource">
+              <option value="">全部</option>
+              <option value="raise">举手选中</option>
+              <option value="random">随机选中</option>
+              <option value="click">点选选中</option>
+              <option value="unknown">未标记</option>
+            </select>
+          </div>
+          <div class="f-group"><label>学生搜索</label><input type="text" id="fStu" placeholder="姓名/学号..."></div>
+          <div class="f-group"><label>&nbsp;</label><button class="btn ghost" style="height: 34px; padding: 0 16px;" onclick="resetFilters()">重置</button></div>
+        </div>
+
+        <div class="dash-kpis" id="dash-kpis"></div>
+
+        <div class="dashboard-grid">
+          <div class="chart-box" style="grid-column: 1 / -1;">
+            <h4>① 互动趋势</h4>
+            <div id="chart-trend" class="echarts-dom"></div>
+          </div>
+          <div class="chart-box">
+            <h4>② 章节掌握度</h4>
+            <div id="chart-chapter" class="echarts-dom"></div>
+          </div>
+          <div class="chart-box">
+            <h4>③ 班级综合对比</h4>
+            <div id="chart-class" class="echarts-dom"></div>
+          </div>
+          <div class="chart-box">
+            <h4>④ 学生四象限</h4>
+            <div id="chart-scatter" class="echarts-dom"></div>
+          </div>
+          <div class="chart-box">
+            <h4>⑤ 班级-章节热力图</h4>
+            <div id="chart-heatmap" class="echarts-dom"></div>
+          </div>
+          <div class="chart-box" style="grid-column: 1 / -1;">
+            <h4>⑦ 被选中情况分析</h4>
+            <div class="hint">区分「举手选中 / 随机选中 / 点选选中」的答题次数、答对次数，折线为正确率。</div>
+            <div id="chart-source" class="echarts-dom"></div>
+          </div>
+          <div class="chart-box text-box" style="grid-column: 1 / -1;">
+            <h4>🤖 智能诊断</h4>
+            <div class="advice-content" id="teaching-advice"></div>
+          </div>
+          <div class="chart-box" style="grid-column: 1 / -1;">
+            <h4>⑥ 学生明细</h4>
+            <div class="dash-table-wrap">
+              <table class="dash-table" id="dash-table">
+                <thead>
+                  <tr>
+                    <th class="num"><button class="sort-btn" data-key="id">学号<span class="sort-arrow"></span></button></th>
+                    <th><button class="sort-btn" data-key="name">姓名<span class="sort-arrow"></span></button></th>
+                    <th><button class="sort-btn" data-key="cls">班级<span class="sort-arrow"></span></button></th>
+                    <th class="num"><button class="sort-btn" data-key="total">总答题量<span class="sort-arrow"></span></button></th>
+                    <th class="num" style="color:#fbbf24;"><button class="sort-btn" data-key="raiseTotal">举手选中(答/对)<span class="sort-arrow"></span></button></th>
+                    <th class="num" style="color:#60a5fa;"><button class="sort-btn" data-key="randomTotal">随机选中(答/对)<span class="sort-arrow"></span></button></th>
+                    <th class="num" style="color:#c084fc;"><button class="sort-btn" data-key="clickTotal">点选选中(答/对)<span class="sort-arrow"></span></button></th>
+                    <th class="num"><button class="sort-btn" data-key="correct">正确数<span class="sort-arrow"></span></button></th>
+                    <th class="num"><button class="sort-btn" data-key="acc">正确率%<span class="sort-arrow"></span></button></th>
+                    <th><button class="sort-btn" data-key="last">最近互动<span class="sort-arrow"></span></button></th>
+                    <th><button class="sort-btn" data-key="tag">分层<span class="sort-arrow"></span></button></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================== 学生发送消息弹窗 ================== -->
+<div class="modal-overlay" id="student-send-msg-modal">
+  <div class="modal-content">
+    <h3>✉️ 给老师留言</h3>
+    <div class="form-group">
+      <label>选择教师 <span style="font-size:12px;color:#94a3b8;">(支持输入姓名/工号搜索)</span></label>
+      <div class="searchable-select" id="s-msg-teacher-container">
+        <input type="text" id="s-msg-teacher-input" placeholder="输入或点击选择教师..." autocomplete="off">
+        <div class="options-container" id="s-msg-teacher-options"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>相关课程 <span style="font-size:12px;color:#94a3b8;">(支持输入课程名搜索)</span></label>
+      <div class="searchable-select" id="s-msg-course-container">
+        <input type="text" id="s-msg-course-input" placeholder="输入或点击选择课程..." autocomplete="off">
+        <div class="options-container" id="s-msg-course-options"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>留言内容</label>
+      <textarea id="s-msg-content" rows="4" placeholder="请输入留言内容..."></textarea>
+    </div>
+    <div class="modal-btn-group">
+      <button class="close-btn" onclick="document.getElementById('student-send-msg-modal').classList.remove('show')">取消</button>
+      <button class="btn primary" onclick="submitStudentMsg()">发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================== 消息列表弹窗 ================== -->
+<div class="modal-overlay" id="msg-list-modal">
+  <div class="modal-content" style="width: 520px;">
+    <h3 id="msg-list-title">📬 消息中心</h3>
+    <div class="msg-list" id="msg-list-container"></div>
+    <div class="modal-btn-group">
+      <button class="close-btn" onclick="document.getElementById('msg-list-modal').classList.remove('show')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================== Excel 查询弹窗 ================== -->
+<div class="modal-overlay" id="preview-modal">
+  <div class="excel-preview-container">
+    <div class="excel-toolbar">
+      <h3 id="preview-title">数据查询</h3>
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <select id="preview-sheet-select" style="background: rgba(15, 23, 42, 0.8); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600; outline: none; cursor: pointer; min-width: 180px;"></select>
+        <button class="close-btn" onclick="document.getElementById('preview-modal').classList.remove('show')" style="font-size: 24px; margin-top: -4px;">&times;</button>
+      </div>
+    </div>
+    <div class="excel-sheet-area" id="preview-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<!-- ================== AI 助教浮窗 ================== -->
+<div id="ai-agent-panel" class="ai-agent-panel">
+  <div class="ai-agent-header" id="ai-agent-header">
+    <span class="ai-agent-title">🤖 AI 助教</span>
+    <div class="ai-agent-actions">
+      <button class="ai-agent-btn" onclick="clearAgentHistory(); event.stopPropagation();" title="清空对话">🗑️</button>
+      <button class="ai-agent-btn" onclick="toggleAgentPanel(); event.stopPropagation();" title="收起">➖</button>
+    </div>
+  </div>
+  <div id="ai-agent-messages" class="ai-agent-messages">
+    <div class="ai-agent-welcome">
+      👋 我是课堂助教，可以直接用中文跟我说：<br>
+      • 「点一个学生」/「点张三」<br>
+      • 「对了」/「错了」<br>
+      • 「这章谁最差」/「看一下名单」<br>
+      • 「给张三发消息：明天交作业」
+    </div>
+  </div>
+  <div class="ai-agent-input-wrap">
+    <textarea id="ai-agent-input" placeholder="输入指令，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
+    <button class="ai-agent-send" onclick="sendAgentMessage()">发送</button>
+  </div>
+</div>
+<button id="ai-agent-fab" class="ai-agent-fab" onclick="toggleAgentPanel()" title="AI 助教">🤖</button>
+
+<script>
+/* ================== 核心配置 ================== */
+const COURSE_XLSX_URL = 'https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-course-data/main/%E8%AF%BE%E7%A8%8B.xlsx';
+const STUDENT_XLSX_URL = 'https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-identity-data/main/student.xlsx';
+const TEACHER_XLSX_URL = 'https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-identity-data/main/teacher.xlsx';
+const CLASS_XLSX_URL = 'https://ghproxy.net/https://raw.githubusercontent.com/xinan1206/my-class-data/main/class.xlsx';
+
+const API_SUBMIT_URL = 'https://wzkjgz.site/api/r6x913czsh';
+const API_ALL_URL = 'https://wzkjgz.site/api/r6x913czsh/all';
+const API_T_MSG_URL = 'https://wzkjgz.site/api/2it1id9ztw';
+const API_T_MSG_ALL_URL = 'https://wzkjgz.site/api/2it1id9ztw/all';
+const API_S_MSG_URL = 'https://wzkjgz.site/api/524fnbo5xa';
+const API_S_MSG_ALL_URL = 'https://wzkjgz.site/api/524fnbo5xa/all';
+
+let courseWorkbook = null;
+let studentWorkbook = null;
+let teacherDataWb = null;
+let allSubmissions = [];
+let allTMsgs = [];
+let allSMsgs = [];
+let currentPreviewWb = null;
+// AI 助教本地代理地址
+const AGENT_PROXY_URL = 'http://localhost:8787';
+const AGENT_MODEL = 'deepseek-chat';
+const AGENT_HISTORY_KEY = 'ai_agent_history_v1';
+const AGENT_MAX_ROUNDS = 6;
+const AGENT_MAX_HISTORY = 20;
+
+/* ================== 被选中情况工具 ================== */
+const ANSWER_SOURCE_LABELS = { raise: '举手选中', random: '随机选中', click: '点选选中', unknown: '未标记' };
+const SELECTION_TYPE_MAP = { raise: '举手选中', random: '随机选中', click: '点选选中' };
+const SOURCE_NORMALIZE = {
+  '举手选中': 'raise', '随机选中': 'random', '点选选中': 'click',
+  'raise': 'raise', 'random': 'random', 'click': 'click',
+  'teacher': 'unknown', 'unknown': 'unknown', '': 'unknown'
+};
+function getAnswerSource(r) {
+  if (!r) return 'unknown';
+  const raw = r.selectionType || r['被选中情况'] || r.pickSituation || r.pickSource || r.answerSource || r.pickType || r.source || '';
+  return SOURCE_NORMALIZE[String(raw).trim()] || 'unknown';
+}
+
+/* ================== 工具函数 ================== */
+async function fetchExcelData(url) {
+  const fetchUrl = url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now();
+  try {
+    const resp = await fetch(fetchUrl);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const buf = await resp.arrayBuffer();
+    return XLSX.read(buf, { type: 'array' });
+  } catch (e) {
+    const backupUrl = url.replace('ghproxy.net', 'mirror.ghproxy.com');
+    const fetchUrl2 = backupUrl + (backupUrl.includes('?') ? '&' : '?') + 'v=' + Date.now();
+    const resp2 = await fetch(fetchUrl2);
+    if (!resp2.ok) throw new Error('网络请求失败');
+    const buf2 = await resp2.arrayBuffer();
+    return XLSX.read(buf2, { type: 'array' });
+  }
+}
+function toNum(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
+function nowStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' +
+         String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
+}
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function toast(msg, isWarn = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isWarn ? ' warn' : '');
+  clearTimeout(window.toastTimer);
+  window.toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+}
+function pct(a, b) { return b ? Math.round(a * 1000 / b) / 10 : 0; }
+function sum(arr, k) { return arr.reduce((a, b) => a + (Number(b[k]) || 0), 0); }
+
+/* ================== 已处理举手 ID 持久化 ================== */
+const RAISE_PROCESSED_KEY = 'raise_processed_v1';
+function loadProcessedRaiseIds() {
+  try {
+    const raw = localStorage.getItem(RAISE_PROCESSED_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return new Set();
+    const today = todayStr();
+    const filtered = arr.filter(id => typeof id === 'string' && id.startsWith(today));
+    if (filtered.length !== arr.length) localStorage.setItem(RAISE_PROCESSED_KEY, JSON.stringify(filtered));
+    return new Set(filtered);
+  } catch (e) { return new Set(); }
+}
+function saveProcessedRaiseIds(set) {
+  try {
+    const today = todayStr();
+    const arr = Array.from(set).filter(id => typeof id === 'string' && id.startsWith(today));
+    localStorage.setItem(RAISE_PROCESSED_KEY, JSON.stringify(arr));
+  } catch (e) {}
+}
+function markRaiseProcessed(mId) {
+  processedRaiseIds.add(mId);
+  saveProcessedRaiseIds(processedRaiseIds);
+}
+
+/* ================== 自定义搜索下拉组件 ================== */
+function initSearchableSelect(inputId, optionsId, data, onSelect) {
+  const input = document.getElementById(inputId);
+  const optionsContainer = document.getElementById(optionsId);
+  let selectedItem = null;
+  function renderOptions(filterText = '') {
+    const lowerFilter = filterText.toLowerCase();
+    const filtered = data.filter(item =>
+      item.label.toLowerCase().includes(lowerFilter) ||
+      (item.value && String(item.value).toLowerCase().includes(lowerFilter))
+    );
+    if (filtered.length === 0) {
+      optionsContainer.innerHTML = '<div class="option-item no-result">无匹配结果</div>';
+    } else {
+      optionsContainer.innerHTML = filtered.map(item =>
+        `<div class="option-item" data-value="${item.value}" data-label="${item.label}">${item.label}</div>`
+      ).join('');
+    }
+    optionsContainer.querySelectorAll('.option-item:not(.no-result)').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const val = el.getAttribute('data-value');
+        const lbl = el.getAttribute('data-label');
+        input.value = lbl;
+        selectedItem = { value: val, label: lbl };
+        optionsContainer.classList.remove('show');
+        if (onSelect) onSelect(selectedItem);
+      });
+    });
+  }
+  input.addEventListener('focus', () => { renderOptions(input.value); optionsContainer.classList.add('show'); });
+  input.addEventListener('input', () => { selectedItem = null; renderOptions(input.value); optionsContainer.classList.add('show'); });
+  input.addEventListener('blur', () => { setTimeout(() => { optionsContainer.classList.remove('show'); }, 150); });
+  return { getSelected: () => selectedItem };
+}
+
+/* ================== 下拉菜单与密码显示 ================== */
+function toggleDropdown(badgeId, menuId) {
+  const badge = document.getElementById(badgeId);
+  const menu = document.getElementById(menuId);
+  document.querySelectorAll('.user-info-badge').forEach(el => { if(el.id !== badgeId) el.classList.remove('active'); });
+  document.querySelectorAll('.dropdown-menu').forEach(el => { if(el.id !== menuId) el.classList.remove('show'); });
+  badge.classList.toggle('active');
+  menu.classList.toggle('show');
+}
+document.addEventListener('click', function(event) {
+  if (!event.target.closest('.user-dropdown')) {
+    document.querySelectorAll('.user-info-badge').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.dropdown-menu').forEach(el => el.classList.remove('show'));
+  }
+});
+function togglePasswordVisibility() {
+  const input = document.getElementById('login-id');
+  const icon = document.getElementById('toggleEye');
+  if (input.type === 'password') { input.type = 'text'; icon.textContent = '🙈'; }
+  else { input.type = 'password'; icon.textContent = '👁️'; }
+}
+
+/* ================== 登录逻辑 ================== */
+function handleRoleChange() {
+  const role = document.getElementById('login-role').value;
+  const label = document.getElementById('login-id-label');
+  const input = document.getElementById('login-id');
+  if (role === 'student') { label.textContent = '学号'; input.placeholder = '请输入学号'; }
+  else { label.textContent = '工号'; input.placeholder = '请输入工号'; }
+}
+function findTeacher(wb, name, id) {
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    if (!ws || !ws['!ref']) continue;
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    if (data.length < 2) continue;
+    const headers = data[0].map(h => String(h || '').trim());
+    const nameCol = headers.findIndex(h => h === '姓名' || h === '教师');
+    const idCol = headers.findIndex(h => h === '工号' || h === '教师工号');
+    if (nameCol === -1 || idCol === -1) continue;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][nameCol] || '').trim() === name && String(data[i][idCol] || '').trim() === id) return { name, id };
+    }
+  }
+  return null;
+}
+function findStudentWithClass(wb, name, id) {
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    if (!ws || !ws['!ref']) continue;
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    if (data.length < 2) continue;
+    const headers = data[0].map(h => String(h || '').trim());
+    const nameCol = headers.findIndex(h => h === '姓名' || h === '学生姓名');
+    const idCol = headers.findIndex(h => h === '学号' || h === '学生学号');
+    if (nameCol === -1 || idCol === -1) continue;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][nameCol] || '').trim() === name && String(data[i][idCol] || '').trim() === id) {
+        return { name, id, className: sheetName };
+      }
+    }
+  }
+  return null;
+}
+async function handleLogin() {
+  const role = document.getElementById('login-role').value;
+  const name = document.getElementById('login-name').value.trim();
+  const id = document.getElementById('login-id').value.trim();
+  const btn = document.getElementById('login-btn');
+  if (!name || !id) return toast('请填写姓名和学号/工号', true);
+  btn.disabled = true; btn.textContent = '验证中...';
+  try {
+    if (role === 'student') {
+      const wb = await fetchExcelData(STUDENT_XLSX_URL);
+      const student = findStudentWithClass(wb, name, id);
+      if (student) {
+        window.currentStudent = student;
+        document.getElementById('login-page').style.opacity = '0';
+        setTimeout(() => {
+          document.getElementById('login-page').style.display = 'none';
+          document.getElementById('student-page').style.display = 'flex';
+          document.getElementById('current-student-name').textContent = name;
+          initStudentPage();
+          loadStudentMsgs();
+        }, 500);
+      } else toast('姓名或学号有误', true);
+    } else if (role === 'teacher') {
+      const wb = await fetchExcelData(TEACHER_XLSX_URL);
+      const teacher = findTeacher(wb, name, id);
+      if (teacher) {
+        window.currentTeacher = teacher;
+        document.getElementById('login-page').style.opacity = '0';
+        setTimeout(() => {
+          document.getElementById('login-page').style.display = 'none';
+          document.getElementById('main-page').style.display = 'block';
+          document.getElementById('current-teacher-name').textContent = name;
+          document.getElementById('teacher-info-badge').style.display = 'flex';
+          initMainApp();
+          loadTeacherMsgs();
+          document.getElementById('teacherRaisePanel').style.display = 'block';
+          startTeacherPollingRaise();
+        }, 500);
+      } else toast('姓名或工号有误', true);
+    } else if (role === 'admin') {
+      const wb = await fetchExcelData(TEACHER_XLSX_URL);
+      const admin = findTeacher(wb, name, id);
+      if (admin) {
+        document.getElementById('login-page').style.opacity = '0';
+        setTimeout(() => {
+          document.getElementById('login-page').style.display = 'none';
+          document.getElementById('admin-page').style.display = 'block';
+          document.getElementById('current-admin-name').textContent = name;
+          document.getElementById('admin-info-badge').style.display = 'flex';
+        }, 500);
+      } else toast('姓名或工号有误', true);
+    }
+  } catch (e) { toast('登录失败：' + e.message, true); }
+  finally { btn.disabled = false; btn.textContent = '进 入 系 统'; }
+}
+
+/* ================== 学生端逻辑 ================== */
+async function initStudentPage() {
+  const sel = document.getElementById('student-course-select');
+  sel.innerHTML = '<option value="">正在拉取课程列表...</option>';
+  if (!courseWorkbook) courseWorkbook = await fetchExcelData(COURSE_XLSX_URL);
+  if (allSubmissions.length === 0) {
+    const resp = await fetch(API_ALL_URL);
+    if (resp.ok) { const json = await resp.json(); allSubmissions = json.submissions || []; }
+  }
+  sel.innerHTML = '<option value="">-- 请选择课程 --</option>';
+  courseWorkbook.SheetNames.forEach(cName => sel.appendChild(new Option(cName, cName)));
+}
+function loadStudentScore() {
+  const stu = window.currentStudent;
+  const course = document.getElementById('student-course-select').value;
+  const raiseBtn = document.getElementById('raiseHandBtn');
+  if (course) raiseBtn.style.display = 'block';
+  else raiseBtn.style.display = 'none';
+  if (!stu || !course) {
+    document.getElementById('student-score').textContent = '--';
+    document.getElementById('student-total').textContent = '--';
+    return;
+  }
+  let latestRecord = null;
+  allSubmissions.forEach(sub => {
+    if (String(sub.studentId) === stu.id && sub.course === course) {
+      if (!latestRecord || (sub.answerTime || '') > (latestRecord.answerTime || '')) latestRecord = sub;
+    }
+  });
+  if (latestRecord) {
+    let correct = Number(latestRecord.correctAnswers) || 0;
+    let total = Number(latestRecord.totalAnswers) || 0;
+    if (String(correct) === stu.id || correct > 100) correct = 0;
+    if (String(total) === stu.id || total > 100) total = 0;
+    document.getElementById('student-score').textContent = correct;
+    document.getElementById('student-total').textContent = total;
+  } else {
+    document.getElementById('student-score').textContent = '0';
+    document.getElementById('student-total').textContent = '0';
+  }
+}
+
+/* ================== 教师端主页逻辑 ================== */
+let currentSheetName = null;
+let chapterList = [];
+let rows = [];
+let cards = [];
+let state = 'idle';
+let flashTimer = null;
+let lastFlashIdx = -1;
+let candidateIdx = -1;
+let undoStack = [];
+let pendingPickSource = 'click';
+let confirmedPickSource = '';
+
+const classSelect = document.getElementById('classSelect');
+const courseSelect = document.getElementById('courseSelect');
+const chapterSelect = document.getElementById('chapterSelect');
+const fileNameEl = document.getElementById('fileName');
+const fileNameText = document.getElementById('fileNameText');
+const gridEl = document.getElementById('grid');
+const pickBtn = document.getElementById('pickBtn');
+const confirmBtn = document.getElementById('confirmBtn');
+const correctBtn = document.getElementById('correctBtn');
+const wrongBtn = document.getElementById('wrongBtn');
+const undoBtn = document.getElementById('undoBtn');
+const exportBtn = document.getElementById('exportBtn');
+const hintEl = document.getElementById('hint');
+function setHint(text, active) { hintEl.textContent = text; hintEl.classList.toggle('active', !!active); }
+
+async function initMainApp() {
+  setHint('正在加载班级与课程列表，请稍候...');
+  try {
+    courseSelect.innerHTML = '<option value="">加载中...</option>';
+    courseSelect.disabled = true;
+    if (!courseWorkbook) courseWorkbook = await fetchExcelData(COURSE_XLSX_URL);
+    courseSelect.innerHTML = '';
+    courseWorkbook.SheetNames.forEach(name => courseSelect.appendChild(new Option(name, name)));
+    courseSelect.disabled = false;
+    if (courseWorkbook.SheetNames.length > 0) {
+      courseSelect.value = courseWorkbook.SheetNames[0];
+      loadChapters(courseSelect.value);
+    }
+  } catch (e) { courseSelect.innerHTML = '<option value="">课程加载失败</option>'; }
+
+  try {
+    const classWb = await fetchExcelData(CLASS_XLSX_URL);
+    classSelect.innerHTML = '';
+    const ws = classWb.Sheets[classWb.SheetNames[0]];
+    if (ws && ws['!ref']) {
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      data.forEach(row => {
+        if (row && row[0]) {
+          const clsName = String(row[0]).trim();
+          if (clsName) classSelect.appendChild(new Option(clsName, clsName));
+        }
+      });
+    }
+    if (classSelect.options.length === 0) classSelect.innerHTML = '<option value="">无班级数据</option>';
+    setHint('数据加载完成，请点击“确定加载名单”提取数据。');
+  } catch (e) { classSelect.innerHTML = '<option value="">班级加载失败</option>'; }
+}
+
+function loadChapters(sheetName) {
+  currentSheetName = sheetName;
+  chapterList = [];
+  const ws = courseWorkbook.Sheets[sheetName];
+  if (!ws || !ws['!ref']) { chapterSelect.innerHTML = '<option value="">无章节</option>'; chapterSelect.disabled = true; return; }
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  let chapterCol = -1;
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: range.s.r, c })];
+    if (cell && String(cell.v).trim() === '章节') { chapterCol = c; break; }
+  }
+  if (chapterCol === -1) { chapterSelect.innerHTML = '<option value="">无“章节”列</option>'; chapterSelect.disabled = true; return; }
+  for (let r = range.s.r + 1; r <= range.e.r; r++) {
+    const cell = ws[XLSX.utils.encode_cell({ r, c: chapterCol })];
+    if (cell && String(cell.v).trim()) chapterList.push(String(cell.v).trim());
+  }
+  chapterSelect.innerHTML = '';
+  if (chapterList.length === 0) { chapterSelect.innerHTML = '<option value="">无数据</option>'; chapterSelect.disabled = true; }
+  else {
+    chapterList.forEach(ch => chapterSelect.appendChild(new Option(ch, ch)));
+    chapterSelect.disabled = false;
+  }
+}
+courseSelect.addEventListener('change', () => { if (courseSelect.value) loadChapters(courseSelect.value); });
+
+async function onConfirmClass() {
+  const className = classSelect.value;
+  const course = courseSelect.value;
+  const chapter = chapterSelect.value;
+  if (!className || !course || !chapter) return toast('请完整选择班级、课程和章节', true);
+  try {
+    setHint(`正在拉取「${className}」学生名单...`);
+    if (!studentWorkbook) studentWorkbook = await fetchExcelData(STUDENT_XLSX_URL);
+    let ws = studentWorkbook.Sheets[className];
+    if (!ws) {
+      const cleanClassName = className.trim().toLowerCase();
+      const actualSheetName = studentWorkbook.SheetNames.find(name => name.trim().toLowerCase() === cleanClassName);
+      if (actualSheetName) ws = studentWorkbook.Sheets[actualSheetName];
+      else {
+        const actualSheetName2 = studentWorkbook.SheetNames.find(name => name.trim().toLowerCase() === cleanClassName + '班');
+        if (actualSheetName2) ws = studentWorkbook.Sheets[actualSheetName2];
+      }
+    }
+    if (!ws) return toast(`未找到名为「${className}」的工作表`, true);
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    const headers = data[0].map(h => String(h).trim());
+    const nameCol = headers.findIndex(h => h === '姓名' || h === '学生姓名');
+    const idCol = headers.findIndex(h => h === '学号' || h === '学生学号');
+    if (nameCol === -1 || idCol === -1) return toast('该班级表格格式错误，缺少姓名或学号列', true);
+
+    rows = [];
+    for (let i = 1; i < data.length; i++) {
+      const sid = String(data[i][idCol] || '').trim();
+      const sname = String(data[i][nameCol] || '').trim();
+      if (sid && sname) rows.push({ id: sid, name: sname, askCount: 0, correctCount: 0, wrongCount: 0, history: [] });
+    }
+    if (rows.length === 0) return toast('该班级没有学生数据', true);
+    confirmedPickSource = '';
+    pendingPickSource = 'click';
+    renderCards();
+    endFlow();
+    setHint(`正在获取「${className}」的云端成绩...`);
+    exportBtn.disabled = false;
+    fileNameText.textContent = className;
+    fileNameEl.classList.remove('empty');
+
+    const resp = await fetch(API_ALL_URL);
+    if (!resp.ok) throw new Error('网络请求失败');
+    const json = await resp.json();
+    const submissions = json.submissions || [];
+    let matchedCount = 0;
+    rows.forEach(row => {
+      const studentSubs = submissions.filter(sub => String(sub.teacherId) === String(window.currentTeacher.id) && sub.course === course && String(sub.studentId) === row.id);
+      if (studentSubs.length > 0) {
+        studentSubs.sort((a, b) => (a.answerTime || '').localeCompare(b.answerTime || ''));
+        const latest = studentSubs[studentSubs.length - 1];
+        const rawAsk = Number(latest.totalAnswers) || 0;
+        const rawCorrect = Number(latest.correctAnswers) || 0;
+        const rawWrong = Number(latest.wrongAnswers) || 0;
+        row.askCount = (String(rawAsk) === row.id || rawAsk > 100) ? 0 : rawAsk;
+        row.correctCount = (String(rawCorrect) === row.id || rawCorrect > 100) ? 0 : rawCorrect;
+        row.wrongCount = (String(rawWrong) === row.id || rawWrong > 100) ? 0 : rawWrong;
+        row.history = studentSubs.map(s => ({ course: s.course, chapter: s.chapter, result: s.result, time: s.answerTime, source: getAnswerSource(s) }));
+        matchedCount++;
+      }
+    });
+    renderCards();
+    endFlow();
+    setHint(`✅ 成功加载：共 ${rows.length} 人，已恢复 ${matchedCount} 人的该门课程积分`);
+  } catch (e) { setHint(`⚠️ 加载失败：${e.message}`, true); }
+}
+
+function renderCards() {
+  gridEl.innerHTML = ''; cards = [];
+  rows.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'card'; card.dataset.index = i;
+    card.title = `学号：${s.id}\n答对：${s.correctCount}　答错：${s.wrongCount}`;
+    card.innerHTML = `<span class="badge ask">${s.askCount}</span><span class="badge pts">${s.correctCount}</span><span class="name">${escapeHtml(s.name)}</span>`;
+    card.addEventListener('click', () => {
+      if (state === 'answered' || rows.length === 0) return;
+      if (flashTimer) { clearInterval(flashTimer); flashTimer = null; }
+      state = 'stopped'; candidateIdx = i;
+      pendingPickSource = 'click'; confirmedPickSource = '';
+      undoStack = []; undoBtn.disabled = true;
+      cards.forEach((c, j) => { c.classList.remove('flash'); c.classList.toggle('stopped', j === candidateIdx); });
+      pickBtn.textContent = '🎲 开始选人'; pickBtn.disabled = false; confirmBtn.disabled = false;
+      setHint(`手动锁定目标：${s.name}`, true);
+    });
+    gridEl.appendChild(card); cards.push(card);
+  });
+}
+function updateCard(i) {
+  const s = rows[i], card = cards[i];
+  if (!s || !card) return;
+  card.querySelector('.badge.ask').textContent = s.askCount;
+  card.querySelector('.badge.pts').textContent = s.correctCount;
+  card.title = `学号：${s.id}\n答对：${s.correctCount}　答错：${s.wrongCount}`;
+}
+function endFlow() {
+  if (flashTimer) { clearInterval(flashTimer); flashTimer = null; }
+  state = 'idle'; candidateIdx = -1; lastFlashIdx = -1;
+  pendingPickSource = 'click';
+  pickBtn.textContent = '🎲 开始选人'; pickBtn.disabled = rows.length === 0;
+  confirmBtn.disabled = true; correctBtn.disabled = true; wrongBtn.disabled = true;
+  cards.forEach(c => c.classList.remove('flash', 'stopped', 'chosen'));
+}
+pickBtn.addEventListener('click', () => {
+  if (state === 'idle' || state === 'stopped') startFlash();
+  else if (state === 'flashing') stopFlash();
+});
+function startFlash() {
+  if (!cards.length) return;
+  state = 'flashing'; candidateIdx = -1; lastFlashIdx = -1;
+  pendingPickSource = 'random'; confirmedPickSource = '';
+  pickBtn.textContent = '🛑 停止滚动'; confirmBtn.disabled = true;
+  undoStack = []; undoBtn.disabled = true;
+  cards.forEach(c => c.classList.remove('stopped', 'chosen', 'flash'));
+  flashTimer = setInterval(() => {
+    let i;
+    if (cards.length === 1) i = 0;
+    else { do { i = Math.floor(Math.random() * cards.length); } while (i === lastFlashIdx); }
+    lastFlashIdx = i;
+    cards.forEach((c, j) => c.classList.toggle('flash', j === i));
+  }, 50);
+  setHint('高速抽取中……', true);
+}
+function stopFlash() {
+  clearInterval(flashTimer); flashTimer = null;
+  state = 'stopped'; candidateIdx = lastFlashIdx >= 0 ? lastFlashIdx : 0;
+  pendingPickSource = 'random';
+  cards.forEach((c, j) => { c.classList.toggle('flash', j === candidateIdx); c.classList.toggle('stopped', j === candidateIdx); });
+  pickBtn.textContent = '🎲 重新抽取'; pickBtn.disabled = false; confirmBtn.disabled = false;
+  setHint(`锁定目标：${rows[candidateIdx].name}`, true);
+}
+confirmBtn.addEventListener('click', () => {
+  if (state !== 'stopped' || candidateIdx < 0) return;
+  const s = rows[candidateIdx];
+  confirmedPickSource = pendingPickSource || 'click';
+  undoStack = [{ type: 'confirm', idx: candidateIdx, oldAsk: s.askCount }];
+  undoBtn.disabled = false;
+  s.askCount += 1;
+  updateCard(candidateIdx);
+  cards[candidateIdx].classList.remove('flash', 'stopped');
+  cards[candidateIdx].classList.add('chosen');
+  state = 'answered'; pickBtn.disabled = true; confirmBtn.disabled = true; correctBtn.disabled = false; wrongBtn.disabled = false;
+  setHint(`已选中：${s.name}（被选中情况：${ANSWER_SOURCE_LABELS[confirmedPickSource] || '未标记'}）`, true);
+});
+correctBtn.addEventListener('click', () => {
+  if (state !== 'answered' || candidateIdx < 0) return;
+  const s = rows[candidateIdx];
+  undoStack.push({ type: 'correct', idx: candidateIdx, oldCorrect: s.correctCount });
+  undoBtn.disabled = false;
+  s.correctCount += 1;
+  s.history.push({ course: courseSelect.value || '未选课程', chapter: chapterSelect.value || '未选章节', result: '正确', time: nowStr(), source: confirmedPickSource || 'unknown' });
+  updateCard(candidateIdx);
+  submitRecord(s, '正确');
+  toast(`✔ ${s.name} 回答正确`); endFlow();
+});
+wrongBtn.addEventListener('click', () => {
+  if (state !== 'answered' || candidateIdx < 0) return;
+  const s = rows[candidateIdx];
+  undoStack.push({ type: 'wrong', idx: candidateIdx, oldWrong: s.wrongCount });
+  undoBtn.disabled = false;
+  s.wrongCount += 1;
+  s.history.push({ course: courseSelect.value || '未选课程', chapter: chapterSelect.value || '未选章节', result: '错误', time: nowStr(), source: confirmedPickSource || 'unknown' });
+  updateCard(candidateIdx);
+  submitRecord(s, '错误');
+  toast(`✘ ${s.name} 回答错误`); endFlow();
+});
+undoBtn.addEventListener('click', () => {
+  if (undoStack.length === 0) return;
+  const action = undoStack.pop();
+  if (action.type === 'confirm') {
+    const s = rows[action.idx];
+    s.askCount = action.oldAsk;
+    updateCard(action.idx); endFlow();
+  } else {
+    const s = rows[action.idx];
+    if (action.type === 'correct') s.correctCount = action.oldCorrect;
+    else s.wrongCount = action.oldWrong;
+    if (s.history.length > 0) s.history.pop();
+    updateCard(action.idx);
+    state = 'answered'; candidateIdx = action.idx;
+    cards.forEach((c, j) => { c.classList.remove('flash', 'chosen'); c.classList.toggle('stopped', j === candidateIdx); });
+    pickBtn.disabled = true; confirmBtn.disabled = true; correctBtn.disabled = false; wrongBtn.disabled = false;
+  }
+  if (undoStack.length === 0) undoBtn.disabled = true;
+});
+
+/* ====== 导出明细 ====== */
+function calcSourceStats(history) {
+  const st = { raise: { t: 0, c: 0 }, random: { t: 0, c: 0 }, click: { t: 0, c: 0 }, unknown: { t: 0, c: 0 } };
+  (history || []).forEach(h => {
+    const s = h.source || 'unknown';
+    const k = st[s] ? s : 'unknown';
+    st[k].t += 1;
+    if (h.result === '正确') st[k].c += 1;
+  });
+  return st;
+}
+exportBtn.addEventListener('click', () => {
+  if (!window.currentTeacher || rows.length === 0) return;
+  const exportTime = nowStr();
+  const wb = XLSX.utils.book_new();
+  const summaryData = [['教师工号', '教师', '学号', '姓名', '总答题数', '答对题数', '答错题数', '举手选中(答题/答对)', '随机选中(答题/答对)', '点选选中(答题/答对)']];
+  rows.forEach(s => {
+    const st = calcSourceStats(s.history);
+    summaryData.push([window.currentTeacher.id, window.currentTeacher.name, s.id, s.name, s.askCount, s.correctCount, s.wrongCount, `${st.raise.t}/${st.raise.c}`, `${st.random.t}/${st.random.c}`, `${st.click.t}/${st.click.c}`]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), '全班汇总');
+  const courseGroups = {};
+  rows.forEach(s => {
+    if (!s.history) return;
+    s.history.forEach(h => {
+      const cName = h.course || '未分类';
+      if (!courseGroups[cName]) courseGroups[cName] = [];
+      courseGroups[cName].push([window.currentTeacher.id, window.currentTeacher.name, s.id, s.name, h.result, h.chapter, h.time, ANSWER_SOURCE_LABELS[h.source] || '未标记']);
+    });
+  });
+  Object.keys(courseGroups).forEach(cName => {
+    courseGroups[cName].sort((a, b) => (a[6] || '').localeCompare(b[6] || ''));
+    const detailData = [['教师工号', '教师', '学号', '姓名', '答题结果', '章节', '答题时间', '被选中情况'], ...courseGroups[cName]];
+    let safeName = cName.replace(/[\\\/\?\*\[\]:]/g, '_').substring(0, 31) || '未命名';
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailData), safeName);
+  });
+  XLSX.writeFile(wb, `${classSelect.value}_答题明细_${exportTime.replace(/[- :]/g, '').slice(0, 12)}.xlsx`);
+});
+
+/* ====== 提交答题记录 ====== */
+function submitRecord(student, result) {
+  if (!window.currentTeacher) return;
+  const src = confirmedPickSource || 'unknown';
+  const payload = {
+    teacherId: window.currentTeacher.id, teacherName: window.currentTeacher.name,
+    studentId: student.id, studentName: student.name,
+    totalAnswers: student.askCount, correctAnswers: student.correctCount, wrongAnswers: student.wrongCount,
+    course: courseSelect.value || '未选课程', chapter: chapterSelect.value || '未选章节', result: result,
+    selectionType: SELECTION_TYPE_MAP[src] || '未标记',
+    pickSource: src, pickType: src, answerTime: nowStr()
+  };
+  fetch(API_SUBMIT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(e => console.warn('上报错误', e));
+}
+
+/* ================== 教师学情分析大屏 ================== */
+let tCharts = {};
+let tDashboardInited = false;
+let tSortKey = 'total', tSortDir = -1;
+let tDashRows = [];
+let tGlobalSubmissions = [];
+let tStudentClassMap = {};
+let tCourseChaptersMap = {};
+
+async function openTeacherAnalysis() {
+  document.getElementById('teacher-analysis-modal').classList.add('show');
+  if (!tDashboardInited) { await initTeacherDashboard(); tDashboardInited = true; }
+  else { setTimeout(() => { Object.values(tCharts).forEach(c => c.resize()); }, 100); }
+}
+function closeTeacherAnalysis() { document.getElementById('teacher-analysis-modal').classList.remove('show'); }
+async function initTeacherDashboard() {
+  document.getElementById('t-dash-kpis').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#94a3b8;">正在拉取云端全量数据构建分析模型...</div>';
+  try {
+    if (!studentWorkbook) studentWorkbook = await fetchExcelData(STUDENT_XLSX_URL);
+    studentWorkbook.SheetNames.forEach(sheetName => {
+      const ws = studentWorkbook.Sheets[sheetName];
+      if (!ws || !ws['!ref']) return;
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      if (data.length < 2) return;
+      const headers = data[0].map(h => String(h||'').trim());
+      const idCol = headers.findIndex(h => h === '学号');
+      const nameCol = headers.findIndex(h => h === '姓名');
+      if (idCol === -1 || nameCol === -1) return;
+      for (let i = 1; i < data.length; i++) {
+        const id = String(data[i][idCol] || '').trim();
+        const name = String(data[i][nameCol] || '').trim();
+        if (id) tStudentClassMap[id] = { cls: sheetName, name: name };
+      }
+    });
+    if (!courseWorkbook) courseWorkbook = await fetchExcelData(COURSE_XLSX_URL);
+    courseWorkbook.SheetNames.forEach(sheetName => {
+      const ws = courseWorkbook.Sheets[sheetName];
+      if (!ws || !ws['!ref']) return;
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const headers = data[0].map(h => String(h||'').trim());
+      const chapCol = headers.findIndex(h => h === '章节');
+      if (chapCol === -1) return;
+      tCourseChaptersMap[sheetName] = [];
+      for (let i = 1; i < data.length; i++) {
+        const ch = String(data[i][chapCol] || '').trim();
+        if (ch) tCourseChaptersMap[sheetName].push(ch);
+      }
+    });
+    const resp = await fetch(API_ALL_URL);
+    const json = await resp.json();
+    let allSubs = json.submissions || [];
+    const myId = String(window.currentTeacher.id);
+    allSubs = allSubs.filter(r => String(r.teacherId) === myId);
+    if (allSubs.length === 0) {
+      document.getElementById('t-dash-kpis').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #fbbf24;">暂无本人授课的答题记录</div>';
+      return;
+    }
+    tGlobalSubmissions = allSubs.map(r => {
+      const info = tStudentClassMap[r.studentId] || { cls: '未知班级', name: r.studentName || '未知' };
+      return { ...r, cls: info.cls, studentName: info.name, total: Number(r.totalAnswers)||0, correct: Number(r.correctAnswers)||0, wrong: Number(r.wrongAnswers)||0, source: getAnswerSource(r) };
+    });
+    fillTSelect('t-fCourse', Object.keys(tCourseChaptersMap), '全部课程');
+    fillTSelect('t-fClass', [...new Set(Object.values(tStudentClassMap).map(s => s.cls))], '全部班级');
+    const days = tGlobalSubmissions.map(r => String(r.answerTime || '').slice(0, 10)).filter(Boolean).sort();
+    if (days.length) {
+      document.getElementById('t-fFrom').value = days[0];
+      document.getElementById('t-fTo').value = days[days.length - 1];
+    }
+    document.getElementById('t-fCourse').addEventListener('change', syncTChapters);
+    syncTChapters();
+    document.querySelectorAll('#t-dash-filters select, #t-dash-filters input').forEach(el => {
+      el.addEventListener('change', renderTeacherDashboard);
+      if (el.type === 'text') el.addEventListener('input', renderTeacherDashboard);
+    });
+    renderTeacherDashboard();
+  } catch (e) {
+    console.error(e);
+    document.getElementById('t-teaching-advice').innerHTML = `<span style="color:#ef4444;">数据加载失败: ${e.message}</span>`;
+  }
+}
+function fillTSelect(id, arr, allLabel) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `<option value="">${allLabel}</option>`;
+  arr.forEach(v => { const op = document.createElement('option'); op.value = v; op.textContent = v; el.appendChild(op); });
+}
+function syncTChapters() {
+  const course = document.getElementById('t-fCourse').value;
+  let list = [];
+  if (course && tCourseChaptersMap[course]) list = tCourseChaptersMap[course];
+  else list = [...new Set([].concat(...Object.values(tCourseChaptersMap)))];
+  fillTSelect('t-fChapter', list, '全部章节');
+}
+function resetTeacherFilters() {
+  ['t-fFrom', 't-fTo', 't-fStu'].forEach(i => document.getElementById(i).value = '');
+  ['t-fCourse', 't-fChapter', 't-fClass', 't-fResult'].forEach(i => document.getElementById(i).value = '');
+  syncTChapters();
+  renderTeacherDashboard();
+}
+function renderTeacherDashboard() {
+  const fFrom = document.getElementById('t-fFrom').value;
+  const fTo = document.getElementById('t-fTo').value;
+  const fCourse = document.getElementById('t-fCourse').value;
+  const fChapter = document.getElementById('t-fChapter').value;
+  const fClass = document.getElementById('t-fClass').value;
+  const fResult = document.getElementById('t-fResult').value;
+  const fKw = document.getElementById('t-fStu').value.trim();
+  const filtered = tGlobalSubmissions.filter(r => {
+    const d = String(r.answerTime || '').slice(0, 10);
+    if (fFrom && d && d < fFrom) return false;
+    if (fTo && d && d > fTo) return false;
+    if (fCourse && r.course !== fCourse) return false;
+    if (fChapter && r.chapter !== fChapter) return false;
+    if (fClass && r.cls !== fClass) return false;
+    if (fResult && r.result !== fResult) return false;
+    if (fKw && !(String(r.studentName).includes(fKw) || String(r.studentId).includes(fKw))) return false;
+    return true;
+  });
+  renderTKPIs(filtered); renderTCharts(filtered); renderTTable(filtered);
+}
+function renderTKPIs(d) {
+  const total = sum(d, 'total');
+  const correct = sum(d, 'correct');
+  const uniqueStudents = new Set(d.map(r => r.studentId)).size;
+  const rosterTotal = Object.keys(tStudentClassMap).length;
+  const cover = rosterTotal ? Math.round(uniqueStudents * 1000 / rosterTotal) / 10 : 0;
+  const acc = pct(correct, total);
+  const per = uniqueStudents ? Math.round(total * 10 / uniqueStudents) / 10 : 0;
+  const chapters = new Set(d.map(r => r.chapter)).size;
+  const allChapters = new Set([].concat(...Object.values(tCourseChaptersMap))).size;
+  const items = [
+    ['答题总量', total, '题 · ' + d.length + ' 条记录'],
+    ['参与学生', uniqueStudents, '人 · 覆盖率 ' + cover + '%'],
+    ['总正确率', acc + '%', correct + ' / ' + total],
+    ['人均答题', per, '题 / 人'],
+    ['章节覆盖', chapters + '/' + allChapters, '已产生互动的章节'],
+    ['错误量', sum(d, 'wrong'), '题 · 需重点关注']
+  ];
+  document.getElementById('t-dash-kpis').innerHTML = items.map(i => `
+    <div class="dash-kpi"><div class="k">${i[0]}</div><div class="v">${i[1]}</div><div class="s">${i[2]}</div></div>
+  `).join('');
+}
+function renderTCharts(d) {
+  const chartTheme = {
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(15,23,42,0.9)', borderColor: '#38bdf8', textStyle: { color: '#fff' } },
+    grid: { left: '3%', right: '4%', bottom: '3%', containTop: true, containLabel: true },
+    xAxis: { axisLine: { lineStyle: { color: '#475569' } }, axisLabel: { color: '#94a3b8', fontSize: 11 }, splitLine: { show: false } },
+    yAxis: { axisLine: { lineStyle: { color: '#475569' } }, axisLabel: { color: '#94a3b8', fontSize: 11 }, splitLine: { lineStyle: { color: 'rgba(71,85,105,0.3)' } } }
+  };
+  const trendMap = {};
+  d.forEach(r => {
+    const day = String(r.answerTime || '').slice(0, 10);
+    if (!day) return;
+    trendMap[day] = trendMap[day] || { t: 0, c: 0 };
+    trendMap[day].t += r.total; trendMap[day].c += r.correct;
+  });
+  const days = Object.keys(trendMap).sort();
+  if (!tCharts.trend) tCharts.trend = echarts.init(document.getElementById('t-chart-trend'));
+  tCharts.trend.setOption(Object.assign({}, chartTheme, {
+    legend: { data: ['答题量', '正确率'], right: 0, top: 0, itemHeight: 8, textStyle: { color: '#cbd5e1' } },
+    grid: { left: 40, right: 40, top: 30, bottom: 30, containLabel: true },
+    xAxis: { type: 'category', data: days, axisLabel: { color: '#94a3b8', rotate: days.length > 12 ? 40 : 0 } },
+    yAxis: [{ type: 'value', name: '题', nameTextStyle: { color: '#94a3b8' }, axisLabel: { color: '#94a3b8' } }, { type: 'value', name: '%', min: 0, max: 100, nameTextStyle: { color: '#94a3b8' }, axisLabel: { color: '#94a3b8' } }],
+    series: [
+      { name: '答题量', type: 'bar', data: days.map(k => trendMap[k].t), itemStyle: { color: '#3b82f6' }, barMaxWidth: 22 },
+      { name: '正确率', type: 'line', yAxisIndex: 1, data: days.map(k => pct(trendMap[k].c, trendMap[k].t)), smooth: true, symbolSize: 5, lineStyle: { color: '#fbbf24' }, itemStyle: { color: '#fbbf24' } }
+    ]
+  }), true);
+  const chapterMap = {};
+  d.forEach(r => { chapterMap[r.chapter] = chapterMap[r.chapter] || { t: 0, c: 0 }; chapterMap[r.chapter].t += r.total; chapterMap[r.chapter].c += r.correct; });
+  const chapterArr = Object.keys(chapterMap).map(k => ({ n: k, v: pct(chapterMap[k].c, chapterMap[k].t), t: chapterMap[k].t })).sort((a, b) => a.v - b.v);
+  if (!tCharts.chapter) tCharts.chapter = echarts.init(document.getElementById('t-chart-chapter'));
+  tCharts.chapter.setOption(Object.assign({}, chartTheme, {
+    tooltip: { trigger: 'axis', formatter: p => p[0].name + '<br/>正确率 ' + p[0].value + '%<br/>样本 ' + chapterArr[p[0].dataIndex].t + ' 题' + (chapterArr[p[0].dataIndex].t < 5 ? ' (样本不足)' : '') },
+    grid: { left: 110, right: 50, top: 20, bottom: 30 },
+    xAxis: { type: 'value', max: 100, axisLabel: { color: '#94a3b8', formatter: '{value}%' } },
+    yAxis: { type: 'category', data: chapterArr.map(a => a.n), axisLabel: { color: '#94a3b8' } },
+    series: [{ type: 'bar', data: chapterArr.map(a => ({ value: a.v, itemStyle: { color: a.v >= 80 ? '#10b981' : a.v >= 60 ? '#3b82f6' : '#ef4444' } })), barMaxWidth: 16, label: { show: true, position: 'right', color: '#cbd5e1', formatter: p => p.value + '%' + (chapterArr[p.dataIndex].t < 5 ? ' *' : '') } }]
+  }), true);
+  const classMap = {};
+  d.forEach(r => {
+    classMap[r.cls] = classMap[r.cls] || { t: 0, c: 0, ids: new Set() };
+    classMap[r.cls].t += r.total; classMap[r.cls].c += r.correct; classMap[r.cls].ids.add(r.studentId);
+  });
+  const classNames = Object.keys(classMap);
+  if (!tCharts.class) tCharts.class = echarts.init(document.getElementById('t-chart-class'));
+  tCharts.class.setOption(Object.assign({}, chartTheme, {
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['人均答题', '正确率', '参与覆盖率'], top: 0, itemHeight: 8, textStyle: { color: '#cbd5e1' } },
+    grid: { left: 40, right: 40, top: 40, bottom: 30, containLabel: true },
+    xAxis: { type: 'category', data: classNames, axisLabel: { color: '#94a3b8', interval: 0 } },
+    yAxis: [{ type: 'value', name: '题/人', nameTextStyle: { color: '#94a3b8' }, axisLabel: { color: '#94a3b8' } }, { type: 'value', name: '%', max: 100, nameTextStyle: { color: '#94a3b8' }, axisLabel: { color: '#94a3b8' } }],
+    series: [
+      { name: '人均答题', type: 'bar', data: classNames.map(n => pct(classMap[n].t, classMap[n].ids.size)), itemStyle: { color: '#3b82f6' }, barMaxWidth: 30 },
+      { name: '正确率', type: 'bar', yAxisIndex: 1, data: classNames.map(n => pct(classMap[n].c, classMap[n].t)), itemStyle: { color: '#10b981' }, barMaxWidth: 30 },
+      { name: '参与覆盖率', type: 'bar', yAxisIndex: 1, data: classNames.map(n => {
+        let roster = 0;
+        Object.values(tStudentClassMap).forEach(s => { if (s.cls === n) roster++; });
+        return pct(classMap[n].ids.size, roster);
+      }), itemStyle: { color: '#c084fc' }, barMaxWidth: 30 }
+    ]
+  }), true);
+  const stuMap = {};
+  d.forEach(r => { stuMap[r.studentId] = stuMap[r.studentId] || { t: 0, c: 0, name: r.studentName, cls: r.cls }; stuMap[r.studentId].t += r.total; stuMap[r.studentId].c += r.correct; });
+  const pts = Object.keys(stuMap).map(k => [stuMap[k].t, pct(stuMap[k].c, stuMap[k].t), stuMap[k].name, stuMap[k].cls]);
+  const avgT = pts.length ? pts.reduce((a, b) => a + b[0], 0) / pts.length : 0;
+  const avgA = pts.length ? pts.reduce((a, b) => a + b[1], 0) / pts.length : 0;
+  if (!tCharts.scatter) tCharts.scatter = echarts.init(document.getElementById('t-chart-scatter'));
+  tCharts.scatter.setOption(Object.assign({}, chartTheme, {
+    tooltip: { formatter: p => p.value[2] + '（' + p.value[3] + '）<br/>答题 ' + p.value[0] + ' 题 · 正确率 ' + p.value[1] + '%' },
+    grid: { left: 40, right: 20, top: 20, bottom: 40, containLabel: true },
+    xAxis: { type: 'value', name: '答题量', nameLocation: 'middle', nameGap: 24, nameTextStyle: { color: '#94a3b8' }, axisLabel: { color: '#94a3b8' } },
+    yAxis: { type: 'value', name: '正确率%', max: 100, nameTextStyle: { color: '#94a3b8' }, axisLabel: { color: '#94a3b8' } },
+    series: [{ type: 'scatter', data: pts, symbolSize: 10, itemStyle: { color: p => (p.value[1] >= 80 && p.value[0] >= avgT) ? '#10b981' : (p.value[1] < 60 ? '#ef4444' : '#3b82f6') }, markLine: { silent: true, symbol: 'none', label: { color: '#94a3b8', fontSize: 10, formatter: '均值' }, lineStyle: { type: 'dashed', color: '#64748b' }, data: [{ xAxis: Math.round(avgT * 10) / 10 }, { yAxis: Math.round(avgA * 10) / 10 }] } }]
+  }), true);
+  const heatMap = {};
+  d.forEach(r => { if (!heatMap[r.chapter]) heatMap[r.chapter] = {}; heatMap[r.chapter][r.cls] = heatMap[r.chapter][r.cls] || { t: 0, c: 0 }; heatMap[r.chapter][r.cls].t += r.total; heatMap[r.chapter][r.cls].c += r.correct; });
+  const hChapters = Object.keys(heatMap);
+  const data = [];
+  hChapters.forEach((ch, i) => classNames.forEach((cl, j) => { const v = heatMap[ch][cl]; data.push([j, i, v ? pct(v.c, v.t) : '-']); }));
+  if (!tCharts.heatmap) tCharts.heatmap = echarts.init(document.getElementById('t-chart-heatmap'));
+  tCharts.heatmap.setOption(Object.assign({}, chartTheme, {
+    tooltip: { formatter: p => classNames[p.value[0]] + ' · ' + hChapters[p.value[1]] + '<br/>正确率 ' + p.value[2] + '%' },
+    grid: { left: 130, right: 20, top: 20, bottom: 60 },
+    xAxis: { type: 'category', data: classNames, axisLabel: { color: '#94a3b8', interval: 0 }, splitArea: { show: true } },
+    yAxis: { type: 'category', data: hChapters, axisLabel: { color: '#94a3b8' } },
+    visualMap: { min: 0, max: 100, calculable: true, orient: 'horizontal', left: 'center', bottom: 0, textStyle: { color: '#94a3b8' }, inRange: { color: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'] } },
+    series: [{ type: 'heatmap', data: data.filter(p => p[2] !== '-'), label: { show: true, color: '#fff', formatter: p => p.value[2] + '%' } }]
+  }), true);
+  generateTAdvice(chapterMap, stuMap);
+}
+function generateTAdvice(chapterMap, stuMap) {
+  let html = '';
+  const weakChapters = Object.keys(chapterMap).filter(k => chapterMap[k].t >= 5).map(k => ({ name: k, rate: chapterMap[k].c / chapterMap[k].t })).sort((a, b) => a.rate - b.rate);
+  if (weakChapters.length > 0) {
+    const lowest = weakChapters[0];
+    if (lowest.rate < 0.7) html += `⚠️ <span class="danger">教学重点提示：</span> 在【<span class="highlight">${lowest.name}</span>】章节中，整体正确率仅为 <span class="danger">${(lowest.rate * 100).toFixed(1)}%</span>，建议下节课重点复习回顾。<br><br>`;
+    else html += `✅ <span style="color:#10b981;font-weight:700;">教学进度良好：</span> 目前各章节掌握情况不错，最低的【${lowest.name}】章节正确率也达到了 ${(lowest.rate * 100).toFixed(1)}%。<br><br>`;
+  }
+  const students = Object.values(stuMap).map(s => ({ name: s.name, rate: s.c / s.t, total: s.t }));
+  const needHelp = students.filter(s => s.total >= 3).sort((a,b) => a.rate - b.rate);
+  if (needHelp.length > 0 && needHelp[0].rate < 0.5) html += `🚨 <span style="color:#f87171;font-weight:700;">学习预警：</span> 学生 <span class="highlight">${needHelp[0].name}</span> 回答了 ${needHelp[0].total} 题，但正确率仅有 <span class="danger">${(needHelp[0].rate * 100).toFixed(0)}%</span>，建议课后单独辅导。`;
+  if (!html) html = '数据量太少，暂时无法生成有效的教学建议。';
+  document.getElementById('t-teaching-advice').innerHTML = html;
+}
+function renderTTable(d) {
+  const stuMap = {};
+  d.forEach(r => {
+    stuMap[r.studentId] = stuMap[r.studentId] || { id: r.studentId, name: r.studentName, cls: r.cls, total: 0, correct: 0, last: '' };
+    stuMap[r.studentId].total += r.total; stuMap[r.studentId].correct += r.correct;
+    const time = String(r.answerTime || '');
+    if (time > stuMap[r.studentId].last) stuMap[r.studentId].last = time;
+  });
+  const fClass = document.getElementById('t-fClass').value;
+  Object.keys(tStudentClassMap).forEach(id => {
+    if (!stuMap[id] && (!fClass || tStudentClassMap[id].cls === fClass)) {
+      stuMap[id] = { id: id, name: tStudentClassMap[id].name, cls: tStudentClassMap[id].cls, total: 0, correct: 0, last: '' };
+    }
+  });
+  tDashRows = Object.values(stuMap).map(r => {
+    r.acc = pct(r.correct, r.total);
+    if (r.total === 0) r.tag = '沉默';
+    else if (r.acc >= 85 && r.total >= 5) r.tag = '优秀';
+    else if (r.acc >= 70) r.tag = '良好';
+    else if (r.acc >= 60) r.tag = '关注';
+    else r.tag = '预警';
+    return r;
+  });
+  sortTTable();
+}
+function sortTTable() {
+  const order = { '沉默': 0, '预警': 1, '关注': 2, '良好': 3, '优秀': 4 };
+  tDashRows.sort((a, b) => {
+    let x, y;
+    if (tSortKey === 'tag') { x = order[a.tag]; y = order[b.tag]; }
+    else { x = a[tSortKey]; y = b[tSortKey]; }
+    if (typeof x === 'string') return x.localeCompare(y) * tSortDir;
+    return (x - y) * tSortDir;
+  });
+  const tagClass = { '优秀': 't-good', '良好': 't-ok', '关注': 't-warn', '预警': 't-bad', '沉默': 't-none' };
+  document.querySelector('#t-dash-table tbody').innerHTML = tDashRows.map(r => `
+    <tr><td>${r.id}</td><td>${r.name}</td><td>${r.cls}</td><td class="num">${r.total}</td><td class="num">${r.correct}</td><td class="num">${r.acc}</td><td>${r.last || '—'}</td><td><span class="tag ${tagClass[r.tag]}">${r.tag}</span></td></tr>
+  `).join('');
+}
+document.querySelectorAll('#t-dash-table th').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.getAttribute('data-key');
+    if (tSortKey === k) tSortDir = -tSortDir; else { tSortKey = k; tSortDir = -1; }
+    sortTTable();
+  });
+});
+window.addEventListener('resize', () => { Object.values(tCharts).forEach(c => c.resize()); });
+
+/* ================== 消息中心 ================== */
+function getMsgId(m) { return (m.sendTime || '') + '_' + (m.teacherId || '') + '_' + (m.studentId || '') + '_' + (m.content || '').slice(0, 10); }
+function getReadMsgs(key) { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) { return []; } }
+function markMsgRead(key, msgId) {
+  const arr = getReadMsgs(key);
+  if (!arr.includes(msgId)) { arr.push(msgId); localStorage.setItem(key, JSON.stringify(arr)); }
+}
+async function loadTeacherMsgs() {
+  try {
+    const resp = await fetch(API_S_MSG_ALL_URL);
+    if (resp.ok) {
+      const json = await resp.json();
+      allSMsgs = json.submissions || [];
+      const myMsgs = allSMsgs.filter(m => String(m.teacherId) === String(window.currentTeacher.id));
+      const readArr = getReadMsgs('read_s2t_' + window.currentTeacher.id);
+      const unread = myMsgs.filter(m => !readArr.includes(getMsgId(m)) && !m.content.startsWith('[举手]'));
+      updateBadge('teacher-notify-badge', unread.length);
+    }
+  } catch (e) { console.warn(e); }
+}
+async function loadStudentMsgs() {
+  try {
+    const resp = await fetch(API_T_MSG_ALL_URL);
+    if (resp.ok) {
+      const json = await resp.json();
+      allTMsgs = json.submissions || [];
+      const myMsgs = allTMsgs.filter(m => String(m.studentId) === String(window.currentStudent.id));
+      const readArr = getReadMsgs('read_t2s_' + window.currentStudent.id);
+      const unread = myMsgs.filter(m => !readArr.includes(getMsgId(m)));
+      updateBadge('student-notify-badge', unread.length);
+    }
+  } catch (e) { console.warn(e); }
+}
+function updateBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (count > 0) { el.textContent = count > 99 ? '99+' : count; el.classList.add('show'); }
+  else { el.classList.remove('show'); }
+}
+async function showMsgList(role) {
+  document.getElementById('msg-list-modal').classList.add('show');
+  const container = document.getElementById('msg-list-container');
+  const title = document.getElementById('msg-list-title');
+  container.innerHTML = '<div class="msg-empty">加载中...</div>';
+  let msgs = [];
+  let readKey = '';
+  try {
+    if (role === 'teacher') {
+      title.textContent = '📬 学生留言中心';
+      const resp = await fetch(API_S_MSG_ALL_URL);
+      const json = await resp.json();
+      msgs = (json.submissions || []).filter(m => String(m.teacherId) === String(window.currentTeacher.id) && !m.content.startsWith('[举手]'));
+      readKey = 'read_s2t_' + window.currentTeacher.id;
+    } else {
+      title.textContent = '📬 教师通知中心';
+      const resp = await fetch(API_T_MSG_ALL_URL);
+      const json = await resp.json();
+      msgs = (json.submissions || []).filter(m => String(m.studentId) === String(window.currentStudent.id));
+      readKey = 'read_t2s_' + window.currentStudent.id;
+    }
+    msgs.sort((a, b) => (b.sendTime || '').localeCompare(a.sendTime || ''));
+  } catch (e) {
+    container.innerHTML = '<div class="msg-empty" style="color:#ef4444;">数据获取失败</div>';
+    return;
+  }
+  if (msgs.length === 0) { container.innerHTML = '<div class="msg-empty">暂无消息</div>'; return; }
+  const readArr = getReadMsgs(readKey);
+  container.innerHTML = msgs.map(m => {
+    const mId = getMsgId(m);
+    const isUnread = !readArr.includes(mId);
+    let header = role === 'teacher' ? `来自：${m.studentName} (${m.className || '未知班级'})` : `来自：${m.teacherName} (教师)`;
+    return `
+      <div class="msg-item" onclick="handleReadMsg(this, '${role}', '${mId}', '${readKey}')">
+        ${isUnread ? '<div class="unread-dot"></div>' : ''}
+        <div class="msg-item-header">
+          <span>${header} | ${m.sendTime || ''}</span>
+          <span style="color:#38bdf8;font-size:12px;">课程：${m.course || '无'}</span>
+        </div>
+        <div class="msg-item-title">${role === 'teacher' ? '学生留言' : '教师通知'}</div>
+        <div class="msg-item-preview">${escapeHtml(m.content)}</div>
+        <div class="msg-item-detail" style="white-space: pre-wrap;">${escapeHtml(m.content)}</div>
+      </div>
+    `;
+  }).join('');
+}
+window.handleReadMsg = function(el, role, mId, readKey) {
+  el.classList.toggle('expanded');
+  if (el.classList.contains('expanded')) {
+    markMsgRead(readKey, mId);
+    const dot = el.querySelector('.unread-dot');
+    if (dot) dot.remove();
+    if (role === 'teacher') loadTeacherMsgs();
+    else loadStudentMsgs();
+  }
+};
+
+/* ================== 发送消息 (教师端) ================== */
+async function openTeacherSendMsg() {
+  document.getElementById('teacher-send-msg-modal').classList.add('show');
+  const clsSel = document.getElementById('t-msg-class');
+  const couSel = document.getElementById('t-msg-course');
+  if (!studentWorkbook) {
+    clsSel.innerHTML = '<option>加载中...</option>';
+    try {
+      studentWorkbook = await fetchExcelData(STUDENT_XLSX_URL);
+      clsSel.innerHTML = '';
+      studentWorkbook.SheetNames.forEach(name => clsSel.innerHTML += `<option value="${name}">${name}</option>`);
+    } catch(e) { clsSel.innerHTML = '<option>加载失败</option>'; }
+  } else {
+    clsSel.innerHTML = '';
+    studentWorkbook.SheetNames.forEach(name => clsSel.innerHTML += `<option value="${name}">${name}</option>`);
+  }
+  if (!courseWorkbook) {
+    couSel.innerHTML = '<option>加载中...</option>';
+    try {
+      courseWorkbook = await fetchExcelData(COURSE_XLSX_URL);
+      couSel.innerHTML = '';
+      courseWorkbook.SheetNames.forEach(name => couSel.innerHTML += `<option value="${name}">${name}</option>`);
+    } catch(e) { couSel.innerHTML = '<option>加载失败</option>'; }
+  } else {
+    couSel.innerHTML = '';
+    courseWorkbook.SheetNames.forEach(name => couSel.innerHTML += `<option value="${name}">${name}</option>`);
+  }
+  document.getElementById('t-msg-content').value = '';
+  loadTMsgStudents();
+}
+function loadTMsgStudents() {
+  const clsName = document.getElementById('t-msg-class').value;
+  const box = document.getElementById('t-msg-list');
+  box.innerHTML = '';
+  document.getElementById('t-msg-select-all').checked = false;
+  if (!clsName || !studentWorkbook) return;
+  const ws = studentWorkbook.Sheets[clsName];
+  if (!ws) return;
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+  const headers = data[0].map(h => String(h||'').trim());
+  const nameCol = headers.findIndex(h => h === '姓名' || h === '学生姓名');
+  const idCol = headers.findIndex(h => h === '学号' || h === '学生学号');
+  for (let i = 1; i < data.length; i++) {
+    const sid = String(data[i][idCol] || '').trim();
+    const sname = String(data[i][nameCol] || '').trim();
+    if (sid && sname) box.innerHTML += `<label><input type="checkbox" value="${sid}" data-name="${sname}"> ${sname} (${sid})</label>`;
+  }
+}
+function toggleAllStudents(boxId, cb) {
+  document.querySelectorAll(`#${boxId} input[type="checkbox"]`).forEach(c => c.checked = cb.checked);
+}
+async function submitTeacherMsg() {
+  const clsName = document.getElementById('t-msg-class').value;
+  const course = document.getElementById('t-msg-course').value;
+  const content = document.getElementById('t-msg-content').value.trim();
+  const checked = document.querySelectorAll('#t-msg-list input[type="checkbox"]:checked');
+  if (checked.length === 0) return toast('请至少选择一名学生', true);
+  if (!content) return toast('请输入消息内容', true);
+  const promises = [];
+  checked.forEach(cb => {
+    const payload = {
+      teacherId: window.currentTeacher.id, teacherName: window.currentTeacher.name,
+      studentId: cb.value, studentName: cb.getAttribute('data-name'),
+      className: clsName, course: course, content: content, sendTime: nowStr()
+    };
+    promises.push(fetch(API_T_MSG_URL, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) }));
+  });
+  try {
+    await Promise.all(promises);
+    toast('✅ 消息发送成功');
+    document.getElementById('teacher-send-msg-modal').classList.remove('show');
+  } catch (e) { toast('发送失败：' + e.message, true); }
+}
+
+/* ================== 发送消息 (学生端) ================== */
+let teacherSelectComp = null;
+let courseSelectComp = null;
+async function openStudentSendMsg() {
+  document.getElementById('student-send-msg-modal').classList.add('show');
+  const tInput = document.getElementById('s-msg-teacher-input');
+  const cInput = document.getElementById('s-msg-course-input');
+  tInput.value = ''; cInput.value = '';
+  if (!teacherDataWb) {
+    tInput.placeholder = '加载教师数据中...';
+    try { teacherDataWb = await fetchExcelData(TEACHER_XLSX_URL); } catch(e) { tInput.placeholder = '加载失败'; return; }
+  }
+  const teacherList = [];
+  for (const sheet of teacherDataWb.SheetNames) {
+    const ws = teacherDataWb.Sheets[sheet];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    if (data.length < 2) continue;
+    const headers = data[0].map(h=>String(h||'').trim());
+    const idCol = headers.findIndex(h => h === '工号' || h === '教师工号');
+    const nameCol = headers.findIndex(h => h === '姓名' || h === '教师');
+    if (idCol !== -1 && nameCol !== -1) {
+      for (let i = 1; i < data.length; i++) {
+        const tid = String(data[i][idCol] || '').trim();
+        const tname = String(data[i][nameCol] || '').trim();
+        if (tid && tname) teacherList.push({ value: tid, label: `${tname} (${tid})` });
+      }
+    }
+  }
+  tInput.placeholder = '输入或点击选择教师...';
+  teacherSelectComp = initSearchableSelect('s-msg-teacher-input', 's-msg-teacher-options', teacherList);
+  if (!courseWorkbook) {
+    cInput.placeholder = '加载课程数据中...';
+    try { courseWorkbook = await fetchExcelData(COURSE_XLSX_URL); } catch(e) { cInput.placeholder = '加载失败'; return; }
+  }
+  const courseList = courseWorkbook.SheetNames.map(c => ({ value: c, label: c }));
+  cInput.placeholder = '输入或点击选择课程...';
+  courseSelectComp = initSearchableSelect('s-msg-course-input', 's-msg-course-options', courseList);
+  document.getElementById('s-msg-content').value = '';
+}
+async function submitStudentMsg() {
+  const tSelected = teacherSelectComp ? teacherSelectComp.getSelected() : null;
+  const cSelected = courseSelectComp ? courseSelectComp.getSelected() : null;
+  const content = document.getElementById('s-msg-content').value.trim();
+  if (!tSelected || !tSelected.value) return toast('请选择或搜索指定教师', true);
+  if (!cSelected || !cSelected.value) return toast('请选择或搜索指定课程', true);
+  if (!content) return toast('请输入留言内容', true);
+  const payload = {
+    teacherId: tSelected.value,
+    teacherName: tSelected.label.split(' (')[0],
+    studentId: window.currentStudent.id,
+    studentName: window.currentStudent.name,
+    course: cSelected.value,
+    content: content,
+    sendTime: nowStr()
+  };
+  try {
+    await fetch(API_S_MSG_URL, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    toast('✅ 留言发送成功');
+    document.getElementById('student-send-msg-modal').classList.remove('show');
+  } catch (e) { toast('发送失败', true); }
+}
+
+/* ================== 学生举手 ================== */
+let raiseCooldownTimer = null;
+async function studentRaiseHand() {
+  const course = document.getElementById('student-course-select').value;
+  if (!course) return toast('请先选择课程再举手', true);
+  const btn = document.getElementById('raiseHandBtn');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = '发送中...';
+  const payload = {
+    teacherId: "TEACHER_RAISE", teacherName: "上课教师",
+    studentId: window.currentStudent.id, studentName: window.currentStudent.name,
+    className: window.currentStudent.className, course: course,
+    content: "[举手] 老师，我想回答问题！", sendTime: nowStr()
+  };
+  try {
+    await fetch(API_S_MSG_URL, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    toast('✅ 举手成功，等待老师点名');
+    let timeLeft = 30;
+    btn.textContent = `已举手 (${timeLeft}s)`;
+    if (raiseCooldownTimer) clearInterval(raiseCooldownTimer);
+    raiseCooldownTimer = setInterval(() => {
+      timeLeft--;
+      if (timeLeft <= 0) {
+        clearInterval(raiseCooldownTimer);
+        btn.disabled = false;
+        btn.textContent = '🙋 老师，我举手！';
+      } else {
+        btn.textContent = `已举手 (${timeLeft}s)`;
+      }
+    }, 1000);
+  } catch (e) {
+    toast('举手失败，请检查网络', true);
+    btn.disabled = false;
+    btn.textContent = '🙋 老师，我举手！';
+  }
+}
+
+/* ================== 教师端处理举手 ================== */
+let raisePollingTimer = null;
+let processedRaiseIds = loadProcessedRaiseIds();
+let currentRaiseMsgs = [];
+let fetchRaiseListLock = false;
+let lastRaiseSignature = '';
+
+function startTeacherPollingRaise() {
+  if (raisePollingTimer) clearInterval(raisePollingTimer);
+  fetchRaiseList();
+  raisePollingTimer = setInterval(fetchRaiseList, 5000);
+}
+
+async function fetchRaiseList() {
+  if (fetchRaiseListLock) return;
+  fetchRaiseListLock = true;
+
+  const activeClass = document.getElementById('classSelect').value;
+  const activeCourse = document.getElementById('courseSelect').value;
+  const container = document.getElementById('raiseListContainer');
+  const badge = document.getElementById('raiseCountBadge');
+  const minBadge = document.getElementById('minimizedBadge');
+
+  try {
+    if (!activeClass || !activeCourse) {
+      container.innerHTML = '<div class="raise-empty">请先选择班级和课程</div>';
+      badge.textContent = '0';
+      minBadge.textContent = '0';
+      currentRaiseMsgs = [];
+      lastRaiseSignature = '';
+      return;
+    }
+
+    const resp = await fetch(API_S_MSG_ALL_URL);
+    if (!resp.ok) return;
+    const json = await resp.json();
+    const msgs = json.submissions || [];
+    const today = nowStr().slice(0, 10);
+
+    let raiseMsgs = msgs.filter(m => {
+      if (!m.content || !m.content.startsWith('[举手]')) return false;
+      if (!m.sendTime || !m.sendTime.startsWith(today)) return false;
+      if (m.className !== activeClass) return false;
+      if (m.course !== activeCourse) return false;
+      const mId = m.sendTime + '_' + m.studentId;
+      if (processedRaiseIds.has(mId)) return false;
+      return true;
+    });
+    raiseMsgs.sort((a, b) => (a.sendTime || '').localeCompare(b.sendTime || ''));
+
+    currentRaiseMsgs = raiseMsgs;
+
+    const uniqueStudents = new Map();
+    raiseMsgs.forEach(m => {
+      if (!uniqueStudents.has(m.studentId)) uniqueStudents.set(m.studentId, m);
+    });
+    const list = Array.from(uniqueStudents.values());
+
+    badge.textContent = list.length;
+    minBadge.textContent = list.length;
+
+    if (list.length === 0) {
+      if (lastRaiseSignature !== '__EMPTY__') {
+        container.innerHTML = '<div class="raise-empty">暂无学生举手</div>';
+        lastRaiseSignature = '__EMPTY__';
+      }
+      return;
+    }
+
+    const newSignature = list.map(m => `${m.studentId}|${m.sendTime}`).join(';');
+    if (newSignature === lastRaiseSignature) return;
+    lastRaiseSignature = newSignature;
+
+    container.innerHTML = list.map(m => `
+      <div class="raise-item" onclick="selectRaisedStudent('${m.studentId}', '${m.sendTime}')">
+        <div class="raise-item-header">
+          <span class="raise-item-name">${escapeHtml(m.studentName)}</span>
+          <span class="raise-item-time">${m.sendTime.slice(11, 16)}</span>
+        </div>
+        <div class="raise-item-tip">点击直接选他答题 →</div>
+      </div>
+    `).join('');
+
+  } catch (e) {
+    console.warn('获取举手列表失败', e);
+  } finally {
+    fetchRaiseListLock = false;
+  }
+}
+
+async function forceRefreshRaiseList() {
+  fetchRaiseListLock = false;
+  lastRaiseSignature = '';
+  await fetchRaiseList();
+}
+
+function manualRefreshRaise() {
+  const btn = document.getElementById('raiseRefreshBtn');
+  if (btn) {
+    btn.classList.remove('spinning');
+    void btn.offsetWidth;
+    btn.classList.add('spinning');
+    setTimeout(() => btn.classList.remove('spinning'), 650);
+  }
+  const activeClass = document.getElementById('classSelect').value;
+  const activeCourse = document.getElementById('courseSelect').value;
+  if (!activeClass || !activeCourse) {
+    toast('请先选择班级和课程', true);
+    return;
+  }
+  forceRefreshRaiseList()
+    .then(() => toast('✅ 举手列表已刷新'))
+    .catch(() => toast('刷新失败，请检查网络', true));
+}
+
+function selectRaisedStudent(studentId, sendTime) {
+  if (!rows || rows.length === 0) return toast('请先加载班级名单', true);
+  const index = rows.findIndex(s => String(s.id) === String(studentId));
+  if (index === -1) return toast('该同学不在当前加载的班级中，请核对班级。', true);
+
+  const activeClass = document.getElementById('classSelect').value;
+  const activeCourse = document.getElementById('courseSelect').value;
+  const today = nowStr().slice(0, 10);
+
+  if (Array.isArray(currentRaiseMsgs) && currentRaiseMsgs.length > 0) {
+    currentRaiseMsgs.forEach(m => {
+      if (String(m.studentId) === String(studentId)) {
+        processedRaiseIds.add(m.sendTime + '_' + m.studentId);
+      }
+    });
+  }
+  processedRaiseIds.add(sendTime + '_' + studentId);
+  saveProcessedRaiseIds(processedRaiseIds);
+
+  if (flashTimer) { clearInterval(flashTimer); flashTimer = null; }
+  state = 'stopped';
+  candidateIdx = index;
+  pendingPickSource = 'raise';
+  confirmedPickSource = '';
+  undoStack = [];
+  undoBtn.disabled = true;
+  cards.forEach((c, j) => {
+    c.classList.remove('flash');
+    c.classList.toggle('stopped', j === candidateIdx);
+  });
+  pickBtn.textContent = '🎲 开始选人';
+  pickBtn.disabled = false;
+  confirmBtn.disabled = false;
+  setHint(`已响应举手：${rows[index].name}，请点击“确定选择”`, true);
+  toast(`已锁定举手同学：${rows[index].name}`);
+
+  forceRefreshRaiseList().catch(() => {});
+
+  fetch(API_S_MSG_ALL_URL, { cache: 'no-store' }).then(res => res.json()).then(json => {
+    let added = false;
+    (json.submissions || []).forEach(m => {
+      if (!m.content || !m.content.startsWith('[举手]')) return;
+      if (!m.sendTime || !m.sendTime.startsWith(today)) return;
+      if (m.className !== activeClass) return;
+      if (m.course !== activeCourse) return;
+      if (String(m.studentId) !== String(studentId)) return;
+      const mId = m.sendTime + '_' + m.studentId;
+      if (!processedRaiseIds.has(mId)) {
+        processedRaiseIds.add(mId);
+        added = true;
+      }
+    });
+    if (added) {
+      saveProcessedRaiseIds(processedRaiseIds);
+      forceRefreshRaiseList().catch(() => {});
+    }
+  }).catch(() => {});
+}
+
+function toggleMinimizeRaisePanel() {
+  document.getElementById('teacherRaisePanel').classList.toggle('minimized');
+}
+
+function clearAllRaise() {
+  const activeClass = document.getElementById('classSelect').value;
+  const activeCourse = document.getElementById('courseSelect').value;
+  if (!activeClass || !activeCourse) return;
+  fetch(API_S_MSG_ALL_URL).then(res => res.json()).then(json => {
+    const msgs = json.submissions || [];
+    const today = nowStr().slice(0, 10);
+    msgs.forEach(m => {
+      if (m.content && m.content.startsWith('[举手]') && m.sendTime && m.sendTime.startsWith(today) && m.className === activeClass && m.course === activeCourse) {
+        processedRaiseIds.add(m.sendTime + '_' + m.studentId);
+      }
+    });
+    saveProcessedRaiseIds(processedRaiseIds);
+    lastRaiseSignature = '';
+    fetchRaiseList();
+    toast('✅ 已清空所有举手');
+  });
+}
+
+/* ================== 浮窗拖拽 ================== */
+let isDragging = false;
+let dragStartX, dragStartY;
+let panelStartX, panelStartY;
+let clickStartX, clickStartY;
+const raisePanel = document.getElementById('teacherRaisePanel');
+raisePanel.addEventListener('mousedown', (e) => {
+  if (e.target.tagName === 'BUTTON' || e.target.closest('.raise-item')) return;
+  isDragging = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  clickStartX = e.clientX;
+  clickStartY = e.clientY;
+  const rect = raisePanel.getBoundingClientRect();
+  panelStartX = rect.left;
+  panelStartY = rect.top;
+  raisePanel.style.right = 'auto';
+  raisePanel.style.left = panelStartX + 'px';
+  raisePanel.style.top = panelStartY + 'px';
+  raisePanel.style.transition = 'none';
+});
+document.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const dx = e.clientX - dragStartX;
+  const dy = e.clientY - dragStartY;
+  let newLeft = panelStartX + dx;
+  let newTop = panelStartY + dy;
+  if (newLeft < 0) newLeft = 0;
+  if (newTop < 0) newTop = 0;
+  if (newLeft > window.innerWidth - raisePanel.offsetWidth) newLeft = window.innerWidth - raisePanel.offsetWidth;
+  if (newTop > window.innerHeight - raisePanel.offsetHeight) newTop = window.innerHeight - raisePanel.offsetHeight;
+  raisePanel.style.left = newLeft + 'px';
+  raisePanel.style.top = newTop + 'px';
+});
+document.addEventListener('mouseup', (e) => {
+  if (!isDragging) return;
+  isDragging = false;
+  raisePanel.style.transition = 'width 0.3s, height 0.3s, border-radius 0.3s';
+  const moveDist = Math.abs(e.clientX - clickStartX) + Math.abs(e.clientY - clickStartY);
+  if (moveDist < 5 && raisePanel.classList.contains('minimized')) {
+    toggleMinimizeRaisePanel();
+  }
+});
+
+/* ================== 管理员端逻辑 ================== */
+function switchAdminTab(tab) {
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+  if (tab === 'manage') {
+    document.querySelectorAll('.sidebar-item')[0].classList.add('active');
+    document.getElementById('admin-manage-panel').style.display = 'block';
+    document.getElementById('admin-dashboard-panel').style.display = 'none';
+  } else {
+    document.querySelectorAll('.sidebar-item')[1].classList.add('active');
+    document.getElementById('admin-manage-panel').style.display = 'none';
+    document.getElementById('admin-dashboard-panel').style.display = 'block';
+    if (!dashboardInited) { initDashboard(); dashboardInited = true; }
+    else { setTimeout(() => { Object.values(charts).forEach(c => c.resize()); }, 100); }
+  }
+}
+async function previewFile(url, title) {
+  document.getElementById('preview-title').textContent = title + ' - 数据查询';
+  document.getElementById('preview-content').innerHTML = '<div style="text-align:center; padding: 40px; color: #94a3b8;">加载中...</div>';
+  document.getElementById('preview-modal').classList.add('show');
+  try {
+    const wb = await fetchExcelData(url);
+    currentPreviewWb = wb;
+    const sel = document.getElementById('preview-sheet-select');
+    sel.innerHTML = wb.SheetNames.map(n => `<option value="${n}">${n}</option>`).join('');
+    sel.onchange = () => renderSheet(wb, sel.value);
+    renderSheet(wb, wb.SheetNames[0]);
+  } catch (e) { document.getElementById('preview-content').innerHTML = '<span style="color:red;">加载失败</span>'; }
+}
+function getColName(n) { let name = ''; while (n >= 0) { name = String.fromCharCode((n % 26) + 65) + name; n = Math.floor(n / 26) - 1; } return name; }
+function renderSheet(wb, sheetName) {
+  const ws = wb.Sheets[sheetName];
+  const c = document.getElementById('preview-content');
+  if (!ws || !ws['!ref']) { c.innerHTML = '<div style="text-align:center;padding:40px;">空表</div>'; return; }
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  let html = '<table class="excel-table"><thead><tr><th class="excel-corner"></th>';
+  for (let col = 0; col < Math.min(range.e.c + 1, 50); col++) html += `<th class="excel-col-header">${getColName(col)}</th>`;
+  html += '</tr></thead><tbody>';
+  for (let r = 0; r < Math.min(range.e.r + 1, 200); r++) {
+    html += `<tr><td class="excel-row-header">${r + 1}</td>`;
+    for (let col = 0; col < Math.min(range.e.c + 1, 50); col++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c: col })];
+      html += `<td>${cell ? cell.v : ''}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  c.innerHTML = html;
+}
+
+/* ================== 管理员大屏 ================== */
+let dashboardInited = false;
+let charts = {};
+let sortKey = 'total', sortDir = -1;
+let dashRows = [];
+let globalSubmissions = [];
+let studentClassMap = {};
+let courseChaptersMap = {};
+
+async function initDashboard() {
+  try {
+    const studentWb = await fetchExcelData(STUDENT_XLSX_URL);
+    studentWb.SheetNames.forEach(sName => {
+      const ws = studentWb.Sheets[sName];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      if (data.length < 2) return;
+      const headers = data[0].map(h => String(h||'').trim());
+      const idCol = headers.findIndex(h => h === '学号');
+      const nameCol = headers.findIndex(h => h === '姓名');
+      if (idCol === -1 || nameCol === -1) return;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][idCol]) studentClassMap[data[i][idCol]] = { cls: sName, name: data[i][nameCol] };
+      }
+    });
+    const courseWb = await fetchExcelData(COURSE_XLSX_URL);
+    courseWb.SheetNames.forEach(sName => {
+      const ws = courseWb.Sheets[sName];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const headers = data[0].map(h => String(h||'').trim());
+      const chapCol = headers.findIndex(h => h === '章节');
+      if (chapCol !== -1) {
+        courseChaptersMap[sName] = [];
+        for (let i = 1; i < data.length; i++) if (data[i][chapCol]) courseChaptersMap[sName].push(data[i][chapCol]);
+      }
+    });
+    const resp = await fetch(API_ALL_URL);
+    const json = await resp.json();
+    globalSubmissions = (json.submissions || []).map(r => {
+      const info = studentClassMap[r.studentId] || { cls: '未知', name: r.studentName };
+      return { ...r, cls: info.cls, studentName: info.name, total: Number(r.totalAnswers)||0, correct: Number(r.correctAnswers)||0, wrong: Number(r.wrongAnswers)||0, source: getAnswerSource(r) };
+    });
+    fillSelect('fCourse', Object.keys(courseChaptersMap), '全部课程');
+    fillSelect('fClass', [...new Set(Object.values(studentClassMap).map(s => s.cls))], '全部班级');
+    fillSelect('fTeacher', [...new Set(globalSubmissions.map(s => s.teacherName))], '全部教师');
+    document.getElementById('fCourse').addEventListener('change', syncDashChapters);
+    syncDashChapters();
+    document.querySelectorAll('.dash-filters select, .dash-filters input').forEach(el => {
+      el.addEventListener('change', renderAdminDashboard);
+      if (el.type === 'text') el.addEventListener('input', renderAdminDashboard);
+    });
+    renderAdminDashboard();
+  } catch (e) { console.error(e); }
+}
+function fillSelect(id, arr, allLabel) {
+  const el = document.getElementById(id);
+  el.innerHTML = `<option value="">${allLabel}</option>` + arr.map(v => `<option value="${v}">${v}</option>`).join('');
+}
+function syncDashChapters() {
+  const c = document.getElementById('fCourse').value;
+  const list = c && courseChaptersMap[c] ? courseChaptersMap[c] : [...new Set([].concat(...Object.values(courseChaptersMap)))];
+  fillSelect('fChapter', list, '全部章节');
+}
+function resetFilters() {
+  ['fFrom', 'fTo', 'fStu'].forEach(i => document.getElementById(i).value = '');
+  ['fCourse', 'fChapter', 'fClass', 'fTeacher', 'fResult', 'fSource'].forEach(i => {
+    const el = document.getElementById(i);
+    if (el) el.value = '';
+  });
+  syncDashChapters();
+  renderAdminDashboard();
+}
+function renderAdminDashboard() {
+  const fFrom = document.getElementById('fFrom').value;
+  const fTo = document.getElementById('fTo').value;
+  const fCourse = document.getElementById('fCourse').value;
+  const fChapter = document.getElementById('fChapter').value;
+  const fClass = document.getElementById('fClass').value;
+  const fTeacher = document.getElementById('fTeacher').value;
+  const fResult = document.getElementById('fResult').value;
+  const fSource = document.getElementById('fSource').value;
+  const fKw = document.getElementById('fStu').value.trim();
+
+  const d = globalSubmissions.filter(r => {
+    const date = String(r.answerTime || '').slice(0, 10);
+    if (fFrom && date < fFrom) return false;
+    if (fTo && date > fTo) return false;
+    if (fCourse && r.course !== fCourse) return false;
+    if (fChapter && r.chapter !== fChapter) return false;
+    if (fClass && r.cls !== fClass) return false;
+    if (fTeacher && r.teacherName !== fTeacher) return false;
+    if (fResult && r.result !== fResult) return false;
+    if (fSource && (r.source || getAnswerSource(r)) !== fSource) return false;
+    if (fKw && !(String(r.studentName).includes(fKw) || String(r.studentId).includes(fKw))) return false;
+    return true;
+  });
+
+  renderAdminKPIs(d);
+  renderAdminCharts(d);
+  renderAdminTable(d);
+  generateAdminAdvice(d);   // ★ 新增：驱动管理员端「智能诊断」
+}
+function renderAdminKPIs(d) {
+  const total = sum(d, 'total');
+  const correct = sum(d, 'correct');
+  const uniqueStu = new Set(d.map(r => r.studentId)).size;
+  const rosterTotal = Object.keys(studentClassMap).length;
+  const srcStats = {
+    raise: { total: 0, correct: 0 }, random: { total: 0, correct: 0 },
+    click: { total: 0, correct: 0 }, unknown: { total: 0, correct: 0 }
+  };
+  d.forEach(r => {
+    const s = r.source || getAnswerSource(r);
+    srcStats[s].total += 1;
+    if (r.result === '正确') srcStats[s].correct += 1;
+  });
+  const items = [
+    ['答题总量', total, `题 · ${d.length} 条`],
+    ['参与学生', uniqueStu, `人 · 覆盖 ${rosterTotal ? pct(uniqueStu, rosterTotal) : 0}%`],
+    ['总正确率', pct(correct, total) + '%', `${correct}/${total}`],
+    ['人均答题', uniqueStu ? (total / uniqueStu).toFixed(1) : 0, '题/人'],
+    ['举手选中', srcStats.raise.total, `答对 ${srcStats.raise.correct} · ${pct(srcStats.raise.correct, srcStats.raise.total)}%`],
+    ['随机选中', srcStats.random.total, `答对 ${srcStats.random.correct} · ${pct(srcStats.random.correct, srcStats.random.total)}%`],
+    ['点选选中', srcStats.click.total, `答对 ${srcStats.click.correct} · ${pct(srcStats.click.correct, srcStats.click.total)}%`]
+  ];
+  document.getElementById('dash-kpis').innerHTML = items.map(i => `
+    <div class="dash-kpi"><div class="k">${i[0]}</div><div class="v">${i[1]}</div><div class="s">${i[2]}</div></div>
+  `).join('');
+}
+function renderAdminCharts(d) {
+  if (!charts.trend) charts.trend = echarts.init(document.getElementById('chart-trend'));
+  const trendMap = {};
+  d.forEach(r => {
+    const day = String(r.answerTime || '').slice(0, 10);
+    if (day) { trendMap[day] = trendMap[day] || { t: 0, c: 0 }; trendMap[day].t += r.total; trendMap[day].c += r.correct; }
+  });
+  const days = Object.keys(trendMap).sort();
+  charts.trend.setOption({
+    tooltip: { trigger: 'axis' }, legend: { data: ['答题量', '正确率'], textStyle: { color: '#cbd5e1' } },
+    xAxis: { type: 'category', data: days, axisLabel: { color: '#94a3b8' } },
+    yAxis: [{ type: 'value', axisLabel: { color: '#94a3b8' } }, { type: 'value', max: 100, axisLabel: { color: '#94a3b8' } }],
+    series: [
+      { name: '答题量', type: 'bar', data: days.map(k => trendMap[k].t), itemStyle: { color: '#3b82f6' } },
+      { name: '正确率', type: 'line', yAxisIndex: 1, data: days.map(k => pct(trendMap[k].c, trendMap[k].t)), itemStyle: { color: '#fbbf24' } }
+    ]
+  }, true);
+  if (!charts.chapter) charts.chapter = echarts.init(document.getElementById('chart-chapter'));
+  const chapMap = {};
+  d.forEach(r => { chapMap[r.chapter] = chapMap[r.chapter] || { t: 0, c: 0 }; chapMap[r.chapter].t += r.total; chapMap[r.chapter].c += r.correct; });
+  const cArr = Object.keys(chapMap).map(k => ({ n: k, v: pct(chapMap[k].c, chapMap[k].t) })).sort((a, b) => a.v - b.v);
+  charts.chapter.setOption({
+    tooltip: { trigger: 'axis' }, grid: { left: 100 },
+    xAxis: { type: 'value', max: 100 }, yAxis: { type: 'category', data: cArr.map(a => a.n) },
+    series: [{ type: 'bar', data: cArr.map(a => ({ value: a.v, itemStyle: { color: a.v >= 80 ? '#10b981' : a.v >= 60 ? '#3b82f6' : '#ef4444' } })) }]
+  }, true);
+  if (!charts.class) charts.class = echarts.init(document.getElementById('chart-class'));
+  const classMap = {};
+  d.forEach(r => { classMap[r.cls] = classMap[r.cls] || { t: 0, c: 0, ids: new Set() }; classMap[r.cls].t += r.total; classMap[r.cls].c += r.correct; classMap[r.cls].ids.add(r.studentId); });
+  const classNames = Object.keys(classMap);
+  charts.class.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['人均答题', '正确率', '参与覆盖率'], textStyle: { color: '#cbd5e1' } },
+    xAxis: { type: 'category', data: classNames, axisLabel: { color: '#94a3b8' } },
+    yAxis: [{ type: 'value', name: '题/人', axisLabel: { color: '#94a3b8' } }, { type: 'value', name: '%', max: 100, axisLabel: { color: '#94a3b8' } }],
+    series: [
+      { name: '人均答题', type: 'bar', data: classNames.map(n => pct(classMap[n].t, classMap[n].ids.size)), itemStyle: { color: '#3b82f6' } },
+      { name: '正确率', type: 'bar', yAxisIndex: 1, data: classNames.map(n => pct(classMap[n].c, classMap[n].t)), itemStyle: { color: '#10b981' } },
+      { name: '参与覆盖率', type: 'bar', yAxisIndex: 1, data: classNames.map(n => {
+        let roster = 0; Object.values(studentClassMap).forEach(s => { if (s.cls === n) roster++; });
+        return pct(classMap[n].ids.size, roster);
+      }), itemStyle: { color: '#c084fc' } }
+    ]
+  }, true);
+  if (!charts.scatter) charts.scatter = echarts.init(document.getElementById('chart-scatter'));
+  const stuMap = {};
+  d.forEach(r => { stuMap[r.studentId] = stuMap[r.studentId] || { t: 0, c: 0, name: r.studentName, cls: r.cls }; stuMap[r.studentId].t += r.total; stuMap[r.studentId].c += r.correct; });
+  const pts = Object.keys(stuMap).map(k => [stuMap[k].t, pct(stuMap[k].c, stuMap[k].t), stuMap[k].name, stuMap[k].cls]);
+  charts.scatter.setOption({
+    tooltip: { formatter: p => p.value[2] + '（' + p.value[3] + '）<br/>答题 ' + p.value[0] + ' 题 · 正确率 ' + p.value[1] + '%' },
+    xAxis: { type: 'value', name: '答题量', axisLabel: { color: '#94a3b8' } },
+    yAxis: { type: 'value', name: '正确率%', max: 100, axisLabel: { color: '#94a3b8' } },
+    series: [{ type: 'scatter', data: pts, symbolSize: 10, itemStyle: { color: p => (p.value[1] >= 80 ? '#10b981' : p.value[1] < 60 ? '#ef4444' : '#3b82f6') } }]
+  }, true);
+  if (!charts.heatmap) charts.heatmap = echarts.init(document.getElementById('chart-heatmap'));
+  const heatMap = {};
+  d.forEach(r => { if (!heatMap[r.chapter]) heatMap[r.chapter] = {}; heatMap[r.chapter][r.cls] = heatMap[r.chapter][r.cls] || { t: 0, c: 0 }; heatMap[r.chapter][r.cls].t += r.total; heatMap[r.chapter][r.cls].c += r.correct; });
+  const hChapters = Object.keys(heatMap);
+  const hData = [];
+  hChapters.forEach((ch, i) => classNames.forEach((cl, j) => { const v = heatMap[ch][cl]; hData.push([j, i, v ? pct(v.c, v.t) : '-']); }));
+  charts.heatmap.setOption({
+    tooltip: { formatter: p => classNames[p.value[0]] + ' · ' + hChapters[p.value[1]] + '<br/>正确率 ' + p.value[2] + '%' },
+    grid: { left: 130, right: 20, top: 20, bottom: 60 },
+    xAxis: { type: 'category', data: classNames, axisLabel: { color: '#94a3b8' } },
+    yAxis: { type: 'category', data: hChapters, axisLabel: { color: '#94a3b8' } },
+    visualMap: { min: 0, max: 100, calculable: true, orient: 'horizontal', left: 'center', bottom: 0, textStyle: { color: '#94a3b8' }, inRange: { color: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'] } },
+    series: [{ type: 'heatmap', data: hData.filter(p => p[2] !== '-'), label: { show: true, color: '#fff', formatter: p => p.value[2] + '%' } }]
+  }, true);
+  if (!charts.source) charts.source = echarts.init(document.getElementById('chart-source'));
+  const srcOrder = ['raise', 'random', 'click', 'unknown'];
+  const srcMap = {}; srcOrder.forEach(s => srcMap[s] = { total: 0, correct: 0 });
+  d.forEach(r => { const s = r.source || getAnswerSource(r); srcMap[s].total += 1; if (r.result === '正确') srcMap[s].correct += 1; });
+  charts.source.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['答题次数', '答对次数', '正确率'], textStyle: { color: '#cbd5e1' } },
+    grid: { left: 40, right: 50, top: 40, bottom: 30, containLabel: true },
+    xAxis: { type: 'category', data: srcOrder.map(s => ANSWER_SOURCE_LABELS[s]), axisLabel: { color: '#94a3b8' } },
+    yAxis: [{ type: 'value', name: '次', axisLabel: { color: '#94a3b8' } }, { type: 'value', name: '%', min: 0, max: 100, axisLabel: { color: '#94a3b8' } }],
+    series: [
+      { name: '答题次数', type: 'bar', data: srcOrder.map(s => srcMap[s].total), itemStyle: { color: '#3b82f6' }, barMaxWidth: 40 },
+      { name: '答对次数', type: 'bar', data: srcOrder.map(s => srcMap[s].correct), itemStyle: { color: '#10b981' }, barMaxWidth: 40 },
+      { name: '正确率', type: 'line', yAxisIndex: 1, data: srcOrder.map(s => pct(srcMap[s].correct, srcMap[s].total)), itemStyle: { color: '#fbbf24' }, lineStyle: { color: '#fbbf24' }, smooth: true }
+    ]
+  }, true);
+}
+
+/* ★ 新增：管理员端「智能诊断」——三条规则 + 兜底 */
+function generateAdminAdvice(d) {
+  const el = document.getElementById('teaching-advice');
+  if (!el) return;
+
+  // 空数据兜底
+  if (!d || d.length === 0) {
+    el.innerHTML = '<span style="color:#94a3b8;">当前筛选条件下暂无数据，无法生成诊断建议。</span>';
+    return;
+  }
+
+  let html = '';
+
+  // 规则 1：最弱章节（样本 ≥ 10，正确率 < 65%）
+  const chapterMap = {};
+  d.forEach(r => {
+    if (!r.chapter) return;
+    chapterMap[r.chapter] = chapterMap[r.chapter] || { t: 0, c: 0 };
+    chapterMap[r.chapter].t += r.total;
+    chapterMap[r.chapter].c += r.correct;
+  });
+  const weakCh = Object.keys(chapterMap)
+    .filter(k => chapterMap[k].t >= 10)
+    .map(k => ({ name: k, rate: chapterMap[k].c / chapterMap[k].t, total: chapterMap[k].t }))
+    .sort((a, b) => a.rate - b.rate);
+  if (weakCh.length > 0 && weakCh[0].rate < 0.65) {
+    html += `⚠️ <span class="danger">全校最弱章节：</span>【<span class="highlight">${escapeHtml(weakCh[0].name)}</span>】正确率仅 <span class="danger">${(weakCh[0].rate * 100).toFixed(1)}%</span>（样本 ${weakCh[0].total} 题），建议组织跨班集体备课、统一讲解思路。<br><br>`;
+  } else if (weakCh.length > 0) {
+    html += `✅ <span style="color:#10b981;font-weight:700;">章节掌握良好：</span> 在样本 ≥ 10 题的章节中，最低的【${escapeHtml(weakCh[0].name)}】也达到了 ${(weakCh[0].rate * 100).toFixed(1)}%，暂无明显薄弱章节。<br><br>`;
+  }
+
+  // 规则 2：最弱班级（样本 ≥ 10，正确率 < 70%），对比最强班
+  const classMap = {};
+  d.forEach(r => {
+    if (!r.cls) return;
+    classMap[r.cls] = classMap[r.cls] || { t: 0, c: 0 };
+    classMap[r.cls].t += r.total;
+    classMap[r.cls].c += r.correct;
+  });
+  const validCls = Object.keys(classMap)
+    .filter(k => classMap[k].t >= 10)
+    .map(k => ({ name: k, rate: classMap[k].c / classMap[k].t, total: classMap[k].t }))
+    .sort((a, b) => a.rate - b.rate);
+  if (validCls.length >= 2 && validCls[0].rate < 0.7) {
+    const gap = (validCls[validCls.length - 1].rate - validCls[0].rate) * 100;
+    html += `📉 <span class="danger">班级差异：</span>【<span class="highlight">${escapeHtml(validCls[0].name)}</span>】正确率 ${(validCls[0].rate * 100).toFixed(1)}%，与最强班相差 <span class="danger">${gap.toFixed(1)} 个百分点</span>，建议加强班级间教研交流。<br><br>`;
+  }
+
+  // 规则 3：被选中方式（记录 ≥ 20，举手占比 < 10%）
+  const srcCount = { raise: 0, random: 0, click: 0, unknown: 0 };
+  d.forEach(r => srcCount[r.source || getAnswerSource(r)]++);
+  const totalSrc = d.length;
+  const raisePct = totalSrc ? srcCount.raise / totalSrc : 0;
+  if (totalSrc >= 20 && raisePct < 0.1) {
+    html += `🙋 <span style="color:#fbbf24;font-weight:700;">互动方式：</span> 举手选中占比仅 <span class="danger">${(raisePct * 100).toFixed(1)}%</span>（共 ${srcCount.raise} / ${totalSrc} 条），主动发言氛围偏弱，建议多鼓励学生举手抢答。<br><br>`;
+  }
+
+  // 规则 4：老师过度点选（点选占比 > 70% 且记录 ≥ 20）
+  const clickPct = totalSrc ? srcCount.click / totalSrc : 0;
+  if (totalSrc >= 20 && clickPct > 0.7) {
+    html += `🎯 <span style="color:#c084fc;font-weight:700;">点名集中：</span> 鼠标点选占比高达 <span class="danger">${(clickPct * 100).toFixed(1)}%</span>，随机与举手参与度较低，建议均衡使用随机点名以避免提问集中。<br><br>`;
+  }
+
+  if (!html) html = '✅ 当前筛选范围内整体表现良好，暂无需要特别预警的问题。';
+  el.innerHTML = html;
+}
+
+function renderAdminTable(d) {
+  const emptySrc = () => ({ raise: { total: 0, correct: 0 }, random: { total: 0, correct: 0 }, click: { total: 0, correct: 0 }, unknown: { total: 0, correct: 0 } });
+  const stuMap = {};
+  function ensureStu(id, name, cls) {
+    if (!stuMap[id]) stuMap[id] = { id, name, cls, total: 0, correct: 0, last: '', src: emptySrc() };
+    return stuMap[id];
+  }
+  d.forEach(r => {
+    const s = ensureStu(r.studentId, r.studentName, r.cls);
+    s.total += r.total; s.correct += r.correct;
+    if (r.answerTime > s.last) s.last = r.answerTime;
+    const src = r.source || getAnswerSource(r);
+    s.src[src].total += 1;
+    if (r.result === '正确') s.src[src].correct += 1;
+  });
+  const fClass = document.getElementById('fClass').value;
+  Object.keys(studentClassMap).forEach(id => {
+    if (!stuMap[id] && (!fClass || studentClassMap[id].cls === fClass)) ensureStu(id, studentClassMap[id].name, studentClassMap[id].cls);
+  });
+  dashRows = Object.values(stuMap).map(r => {
+    r.acc = pct(r.correct, r.total);
+    r.tag = r.total === 0 ? '沉默' : r.acc >= 85 && r.total >= 5 ? '优秀' : r.acc >= 70 ? '良好' : r.acc >= 60 ? '关注' : '预警';
+    r.raiseTotal = r.src.raise.total; r.raiseCorrect = r.src.raise.correct;
+    r.randomTotal = r.src.random.total; r.randomCorrect = r.src.random.correct;
+    r.clickTotal = r.src.click.total; r.clickCorrect = r.src.click.correct;
+    return r;
+  });
+  sortTable();
+}
+function sortTable() {
+  const order = { '沉默': 0, '预警': 1, '关注': 2, '良好': 3, '优秀': 4 };
+  dashRows.sort((a, b) => {
+    let x = sortKey === 'tag' ? order[a.tag] : a[sortKey];
+    let y = sortKey === 'tag' ? order[b.tag] : b[sortKey];
+    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * sortDir;
+  });
+  const tClass = { '优秀': 't-good', '良好': 't-ok', '关注': 't-warn', '预警': 't-bad', '沉默': 't-none' };
+  document.querySelector('#dash-table tbody').innerHTML = dashRows.map(r => `
+    <tr>
+      <td>${r.id}</td><td>${r.name}</td><td>${r.cls}</td>
+      <td class="num">${r.total}</td>
+      <td class="num">${r.raiseTotal}/${r.raiseCorrect}</td>
+      <td class="num">${r.randomTotal}/${r.randomCorrect}</td>
+      <td class="num">${r.clickTotal}/${r.clickCorrect}</td>
+      <td class="num">${r.correct}</td>
+      <td class="num">${r.acc}</td>
+      <td>${r.last || '—'}</td>
+      <td><span class="tag ${tClass[r.tag]}">${r.tag}</span></td>
+    </tr>
+  `).join('');
+  document.querySelectorAll('#dash-table .sort-btn').forEach(btn => {
+    const isActive = btn.getAttribute('data-key') === sortKey;
+    btn.classList.toggle('active', isActive);
+    const arrow = btn.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = isActive ? (sortDir === 1 ? '▲' : '▼') : '';
+  });
+}
+document.querySelectorAll('#dash-table .sort-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const k = btn.getAttribute('data-key');
+    if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = -1; }
+    sortTable();
+  });
+});
+window.addEventListener('resize', () => { Object.values(charts).forEach(c => c.resize()); });
+
+document.getElementById('login-id').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+/* ================== AI 助教 Agent 主体 ================== */
+
+const AGENT_TOOLS = [
+  { type: 'function', function: { name: 'get_classroom_state', description: '获取当前课堂状态', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'pick_random_student', description: '随机点名一个学生', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'pick_student_by_name', description: '按姓名点名学生', parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } } },
+  { type: 'function', function: { name: 'mark_answer_correct', description: '记为答对', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'mark_answer_wrong', description: '记为答错', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'query_students', description: '查询学生列表', parameters: { type: 'object', properties: { filter: { type: 'string', enum: ['all', 'weakest', 'strongest'] }, limit: { type: 'number' } } } } },
+  { type: 'function', function: { name: 'query_chapter_performance', description: '查询章节成绩', parameters: { type: 'object', properties: { chapter: { type: 'string' } } } } },
+  { type: 'function', function: { name: 'send_message_to_student', description: '给学生发消息', parameters: { type: 'object', properties: { studentName: { type: 'string' }, content: { type: 'string' } }, required: ['studentName', 'content'] } } }
+];
+
+async function executeAgentTool(name, args) {
+  try {
+    switch (name) {
+      case 'get_classroom_state': {
+        const loaded = rows && rows.length > 0;
+        return { className: classSelect.value, course: courseSelect.value, chapter: chapterSelect.value, rosterLoaded: loaded, studentCount: loaded ? rows.length : 0, currentLockedStudent: (loaded && candidateIdx >= 0 && state !== 'idle') ? rows[candidateIdx].name : null, state: state };
+      }
+      case 'pick_random_student': {
+        if (!rows || rows.length === 0) return { error: '尚未加载班级名单' };
+        if (state === 'answered') return { error: '当前已有学生答题中' };
+        startFlash(); await new Promise(r => setTimeout(r, 700)); stopFlash();
+        if (state === 'stopped' && candidateIdx >= 0) { confirmBtn.click(); await new Promise(r => setTimeout(r, 80)); }
+        return { picked: rows[candidateIdx].name, stateNow: state };
+      }
+      case 'pick_student_by_name': {
+        if (!rows || rows.length === 0) return { error: '尚未加载班级名单' };
+        if (state === 'answered') return { error: '当前已有学生答题中' };
+        let idx = rows.findIndex(s => s.name === args.name) >= 0 ? rows.findIndex(s => s.name === args.name) : rows.findIndex(s => s.name.includes(args.name));
+        if (idx === -1) return { error: `未找到「${args.name}」` };
+        if (flashTimer) { clearInterval(flashTimer); flashTimer = null; }
+        state = 'stopped'; candidateIdx = idx; pendingPickSource = 'click';
+        cards.forEach((c, j) => { c.classList.remove('flash'); c.classList.toggle('stopped', j === candidateIdx); });
+        confirmBtn.disabled = false; confirmBtn.click(); await new Promise(r => setTimeout(r, 80));
+        return { picked: rows[idx].name, stateNow: state };
+      }
+      case 'mark_answer_correct':
+      case 'mark_answer_wrong': {
+        if (state !== 'answered' || candidateIdx < 0) return { error: '当前没有处于待判定的学生' };
+        const s = rows[candidateIdx]; const isCorrect = name === 'mark_answer_correct';
+        if (!confirm(`确认把「${s.name}」记为「${isCorrect ? '答对' : '答错'}」？`)) return { cancelled: true, reason: '老师取消' };
+        if (isCorrect) correctBtn.click(); else wrongBtn.click();
+        return { ok: true, student: s.name };
+      }
+      case 'query_students': {
+        if (!rows || rows.length === 0) return { error: '尚未加载班级名单' };
+        let list = rows.map(s => ({ name: s.name, correct: s.correctCount, wrong: s.wrongCount, total: s.askCount }));
+        if (args.filter === 'weakest') list.sort((a, b) => b.wrong - a.wrong);
+        else if (args.filter === 'strongest') list.sort((a, b) => b.correct - a.correct);
+        return { total: rows.length, list: list.slice(0, args.limit || 10) };
+      }
+      case 'query_chapter_performance': {
+        const chap = args.chapter || chapterSelect.value;
+        if (!chap) return { error: '未指定章节' };
+        const resp = await fetch(API_ALL_URL, { cache: 'no-store' }); 
+        const json = await resp.json();
+        const subs = (json.submissions || []).filter(r => String(r.teacherId) === String(window.currentTeacher.id) && r.chapter === chap);
+        if (subs.length === 0) return { chapter: chap, sample: 0, note: '无记录' };
+        const totalAns = subs.reduce((a, r) => a + (Number(r.totalAnswers) || 0), 0);
+        const totalCor = subs.reduce((a, r) => a + (Number(r.correctAnswers) || 0), 0);
+        return { chapter: chap, correctRate: totalAns ? (totalCor * 100 / totalAns).toFixed(1) + '%' : 'N/A' };
+      }
+      case 'send_message_to_student': {
+        if (!rows || rows.length === 0) return { error: '尚未加载名单' };
+        let s = rows.find(r => r.name === args.studentName) || rows.find(r => r.name.includes(args.studentName));
+        if (!s) return { error: `未找到「${args.studentName}」` };
+        
+        // 1. 弹出确认框
+        if (!confirm(`确认给「${s.name}」发消息：\n${args.content}`)) {
+          return { cancelled: true, reason: '老师取消了发送' };
+        }
+
+        try {
+          // 2. 真正发起请求
+          const resp = await fetch(API_T_MSG_URL, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ 
+              teacherId: window.currentTeacher.id, 
+              teacherName: window.currentTeacher.name, 
+              studentId: s.id, 
+              studentName: s.name, 
+              className: classSelect.value, 
+              course: courseSelect.value, 
+              content: args.content, 
+              sendTime: nowStr() 
+            }) 
+          });
+
+          // 3. 检查接口是否真的返回成功
+          if (!resp.ok) {
+            return { error: `发送失败，服务器状态码: ${resp.status}` };
+          }
+          return { ok: true, to: s.name, content: args.content };
+        } catch (e) {
+          // 捕获网络断开、跨域报错等致命错误
+          return { error: `网络请求异常，无法发送: ${e.message}` };
+        }
+      }
+      default:
+        return { error: '未知工具' };
+    }
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+let agentBusy = false;
+function loadAgentHistory() { try { return JSON.parse(sessionStorage.getItem(AGENT_HISTORY_KEY) || '[]'); } catch (e) { return []; } }
+function saveAgentHistory(history) { try { sessionStorage.setItem(AGENT_HISTORY_KEY, JSON.stringify(history.filter(m => m.role === 'user' || (m.role === 'assistant' && m.content)).slice(-AGENT_MAX_HISTORY))); } catch (e) {} }
+
+function appendAgentMessage(role, text) {
+  const container = document.getElementById('ai-agent-messages');
+  if (!container) return null;
+  const div = document.createElement('div');
+  div.className = 'ai-msg ' + role;
+  if (role === 'assistant' && !text) { div.classList.add('loading'); div.textContent = '思考中'; }
+  else { div.textContent = text; }
+  container.appendChild(div); container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+async function sendAgentMessage() {
+  if (agentBusy) return;
+  const input = document.getElementById('ai-agent-input');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  input.value = ''; input.style.height = 'auto';
+  appendAgentMessage('user', text);
+  const loadingEl = appendAgentMessage('assistant', '');
+  agentBusy = true;
+  document.querySelector('.ai-agent-send').disabled = true;
+
+  try {
+    const sysPrompt = `你是课堂互动助教。工具：get_classroom_state, pick_random_student, pick_student_by_name, mark_answer_correct, mark_answer_wrong, query_students, query_chapter_performance, send_message_to_student。规则：1.必须先调工具获取数据，不许编造。2.口语化回答，不要说太长。`;
+    let history = loadAgentHistory();
+    const messages = [{ role: 'system', content: sysPrompt }, ...history, { role: 'user', content: text }];
+    
+    for (let round = 0; round < AGENT_MAX_ROUNDS; round++) {
+      const resp = await fetch(AGENT_PROXY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: AGENT_MODEL, messages, tools: AGENT_TOOLS, tool_choice: 'auto' }) });
+      if (!resp.ok) throw new Error(`请求失败: ${resp.status}`);
+      const data = await resp.json();
+      const msg = data.choices[0].message;
+      messages.push(msg);
+
+      if (!msg.tool_calls || msg.tool_calls.length === 0) {
+        history.push({ role: 'user', content: text }); history.push({ role: 'assistant', content: msg.content });
+        saveAgentHistory(history);
+        loadingEl.classList.remove('loading'); loadingEl.textContent = msg.content || '完成';
+        break;
+      }
+      for (const tc of msg.tool_calls) {
+        const args = JSON.parse(tc.function.arguments || '{}');
+        const result = await executeAgentTool(tc.function.name, args);
+        appendAgentMessage('tool', `🔧 ${tc.function.name} → 完成`);
+        messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+      }
+    }
+  } catch (e) {
+    loadingEl.classList.remove('loading'); loadingEl.className = 'ai-msg error'; loadingEl.textContent = '❌ ' + e.message;
+  } finally {
+    agentBusy = false; document.querySelector('.ai-agent-send').disabled = false;
+  }
+}
+
+function toggleAgentPanel() { document.getElementById('ai-agent-panel').classList.toggle('show'); }
+function clearAgentHistory() { if (confirm('清空历史？')) { sessionStorage.removeItem(AGENT_HISTORY_KEY); document.getElementById('ai-agent-messages').innerHTML = '<div class="ai-agent-welcome">👋 已清空。</div>'; } }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('ai-agent-input');
+  if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAgentMessage(); } });
+});
+
+(function initAgentDrag() {
+  const panel = document.getElementById('ai-agent-panel'), header = document.getElementById('ai-agent-header');
+  if (!panel || !header) return;
+  let dragging = false, sx = 0, sy = 0, px = 0, py = 0;
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON') return;
+    dragging = true; sx = e.clientX; sy = e.clientY; const rect = panel.getBoundingClientRect();
+    px = rect.left; py = rect.top; panel.style.right = 'auto'; panel.style.bottom = 'auto'; panel.style.left = px + 'px'; panel.style.top = py + 'px';
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    let nx = px + (e.clientX - sx), ny = py + (e.clientY - sy);
+    panel.style.left = Math.max(0, Math.min(nx, window.innerWidth - panel.offsetWidth)) + 'px';
+    panel.style.top = Math.max(0, Math.min(ny, window.innerHeight - panel.offsetHeight)) + 'px';
+  });
+  document.addEventListener('mouseup', () => { dragging = false; });
+})();
+handleRoleChange();
+</script>
+</body>
+</html>
