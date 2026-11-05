@@ -1,7 +1,7 @@
 let htmlContent = "";
 try {
   // 尝试 1：寻找同级目录
-  htmlContent = await Deno.readTextFile(new URL("./index.html", import.meta.url));
+  htmlContent = await Deno.readTextFile(new URL("./index_cloud.html", import.meta.url));
 } catch (e) {
   try {
     // 尝试 2：寻找上一级目录（应对 main.ts 被放到了 src 文件夹里的情况）
@@ -9,10 +9,10 @@ try {
   } catch (e2) {
     try {
       // 尝试 3：直接从根目录找
-      htmlContent = await Deno.readTextFile("index.html");
+      htmlContent = await Deno.readTextFile("index_cloud.html");
     } catch (e3) {
-      console.error("依然找不到 index.html，请检查 GitHub 仓库里的文件位置！");
-      htmlContent = "<h1>Error: index.html not found</h1>";
+      console.error("依然找不到 index_cloud.html，请检查 GitHub 仓库里的文件位置！");
+      htmlContent = "<h1>Error: index_cloud.html not found</h1>";
     }
   }
 }
@@ -52,18 +52,18 @@ Deno.serve(async (req) => {
       return new Response(data, { let htmlContent = "";
 try {
   // 尝试 1：寻找同级目录
-  htmlContent = await Deno.readTextFile(new URL("./index.html", import.meta.url));
+  htmlContent = await Deno.readTextFile(new URL("./index_cloud.html", import.meta.url));
 } catch (e) {
   try {
     // 尝试 2：寻找上一级目录（应对 main.ts 被放到了 src 文件夹里的情况）
-    htmlContent = await Deno.readTextFile(new URL("../index.html", import.meta.url));
+    htmlContent = await Deno.readTextFile(new URL("../index_cloud.html", import.meta.url));
   } catch (e2) {
     try {
       // 尝试 3：直接从根目录找
       htmlContent = await Deno.readTextFile("index_cloud.html");
     } catch (e3) {
-      console.error("依然找不到 index.html，请检查 GitHub 仓库里的文件位置！");
-      htmlContent = "<h1>Error: index.html not found</h1>";
+      console.error("依然找不到 index_cloud.html，请检查 GitHub 仓库里的文件位置！");
+      htmlContent = "<h1>Error: index_cloud.html not found</h1>";
     }
   }
 }
