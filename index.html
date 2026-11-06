@@ -2727,12 +2727,29 @@ const AGENT_TOOLS = [
       description: '自动寻找一个当前答题次数为0（未被点过名）的学生，并直接选中他', 
       parameters: { type: 'object', properties: {} } 
     } 
+  }，
+  { 
+    type: 'function', 
+    function: { 
+      name: 'undo_last_action', 
+      description: '撤销上一次的操作（比如撤销刚才点错的名字，或者撤销刚才记错的分数）', 
+      parameters: { type: 'object', properties: {} } 
+    } 
   }
 ];
 
 async function executeAgentTool(name, args) {
   try {
     switch (name) {
+            case 'undo_last_action': {
+        if (undoBtn.disabled) {
+          return { error: '当前没有可以撤销的操作，可能是还没点过名，或者是历史记录已经空了。' };
+        }
+        // 直接模拟点击系统的撤销按钮
+        undoBtn.click();
+        await new Promise(r => setTimeout(r, 100)); // 稍微等一下 UI 反应
+        return { ok: true, message: '已成功撤销上一次操作' };
+      }
       case 'get_classroom_state': {
         const loaded = rows && rows.length > 0;
         return { className: classSelect.value, course: courseSelect.value, chapter: chapterSelect.value, rosterLoaded: loaded, studentCount: loaded ? rows.length : 0, currentLockedStudent: (loaded && candidateIdx >= 0 && state !== 'idle') ? rows[candidateIdx].name : null, state: state };
@@ -2884,7 +2901,7 @@ async function sendAgentMessage() {
   document.querySelector('.ai-agent-send').disabled = true;
 
   try {
-    const sysPrompt = `你是课堂互动助教。工具：get_classroom_state, pick_random_student, pick_student_by_name, pick_unpicked_student, mark_answer_correct, mark_answer_wrong, query_students, query_chapter_performance, send_message_to_student。规则：1.必须先调工具获取数据，不许编造。2.口语化回答，不要说太长。`;
+   const sysPrompt = `你是课堂互动助教。工具：get_classroom_state, pick_random_student, pick_student_by_name, pick_unpicked_student, undo_last_action, mark_answer_correct, mark_answer_wrong, query_students, query_chapter_performance, send_message_to_student。规则：1.必须先调工具获取数据，不许编造。2.口语化回答，不要说太长。3.如果老师说"点错了"、"撤销"、"撤回"，请调用 undo_last_action。`;
     let history = loadAgentHistory();
     const messages = [{ role: 'system', content: sysPrompt }, ...history, { role: 'user', content: text }];
     
