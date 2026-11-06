@@ -2942,12 +2942,31 @@ const sysPrompt = `你是课堂互动助教。可调用的工具：get_classroom
 
 function toggleAgentPanel() { document.getElementById('ai-agent-panel').classList.toggle('show'); }
 function clearAgentHistory() { if (confirm('清空历史？')) { sessionStorage.removeItem(AGENT_HISTORY_KEY); document.getElementById('ai-agent-messages').innerHTML = '<div class="ai-agent-welcome">👋 已清空。</div>'; } }
-
 document.addEventListener('DOMContentLoaded', () => {
   const input = document.getElementById('ai-agent-input');
-  if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAgentMessage(); } });
-});
+  if (input) {
+    // 1. 保留原有的 Enter 键发送
+    input.addEventListener('keydown', (e) => { 
+      if (e.key === 'Enter' && !e.shiftKey) { 
+        e.preventDefault(); 
+        sendAgentMessage(); 
+      } 
+    });
 
+    // 2. 新增：输入或粘贴内容时，检测结尾是否为“请发送”
+    input.addEventListener('input', () => {
+      const text = input.value.trim();
+      // 匹配结尾的“请发送”，允许后面带空格或标点符号（中英文标点均可）
+      if (/请发送[\s，。！？!?,.]*$/.test(text)) {
+        // 稍微延迟 100 毫秒，确保输入框内容已经渲染完毕，然后再发送
+        setTimeout(() => {
+          // 如果此时 AI 没在思考中，才允许发送
+          if (!agentBusy) sendAgentMessage();
+        }, 100);
+      }
+    });
+  }
+});
 (function initAgentDrag() {
   const panel = document.getElementById('ai-agent-panel'), header = document.getElementById('ai-agent-header');
   if (!panel || !header) return;
