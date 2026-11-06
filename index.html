@@ -2719,7 +2719,15 @@ const AGENT_TOOLS = [
   { type: 'function', function: { name: 'mark_answer_wrong', description: '记为答错', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'query_students', description: '查询学生列表', parameters: { type: 'object', properties: { filter: { type: 'string', enum: ['all', 'weakest', 'strongest'] }, limit: { type: 'number' } } } } },
   { type: 'function', function: { name: 'query_chapter_performance', description: '查询章节成绩', parameters: { type: 'object', properties: { chapter: { type: 'string' } } } } },
-  { type: 'function', function: { name: 'send_message_to_student', description: '给学生发消息', parameters: { type: 'object', properties: { studentName: { type: 'string' }, content: { type: 'string' } }, required: ['studentName', 'content'] } } }
+  { type: 'function', function: { name: 'send_message_to_student', description: '给学生发消息', parameters: { type: 'object', properties: { studentName: { type: 'string' }, content: { type: 'string' } }, required: ['studentName', 'content'] } } },
+{ 
+    type: 'function', 
+    function: { 
+      name: 'pick_unpicked_student', 
+      description: '自动寻找一个当前答题次数为0（未被点过名）的学生，并直接选中他', 
+      parameters: { type: 'object', properties: {} } 
+    } 
+  }
 ];
 
 async function executeAgentTool(name, args) {
@@ -2772,6 +2780,37 @@ async function executeAgentTool(name, args) {
         const totalAns = subs.reduce((a, r) => a + (Number(r.totalAnswers) || 0), 0);
         const totalCor = subs.reduce((a, r) => a + (Number(r.correctAnswers) || 0), 0);
         return { chapter: chap, correctRate: totalAns ? (totalCor * 100 / totalAns).toFixed(1) + '%' : 'N/A' };
+      }
+      case 'pick_unpicked_student': {
+        if (!rows || rows.length === 0) return { error: '尚未加载班级名单' };
+        if (state === 'answered') return { error: '当前已有学生答题中' };
+        
+        // 找出所有答题次数为 0 的学生
+        let unpickedList = rows.filter(s => s.askCount === 0);
+        if (unpickedList.length === 0) return { error: '太棒了！全班所有人都已经被点过名了。' };
+        
+        // 随机抽一个
+        let randomIndex = Math.floor(Math.random() * unpickedList.length);
+        let targetStudent = unpickedList[randomIndex];
+        
+        // 找到这个学生在原数组里的真正位置
+        let idx = rows.findIndex(s => s.id === targetStudent.id);
+        
+        if (flashTimer) { clearInterval(flashTimer); flashTimer = null; }
+        state = 'stopped'; candidateIdx = idx; pendingPickSource = 'random';
+        
+        // 页面 UI 变黄闪烁
+        cards.forEach((c, j) => { 
+          c.classList.remove('flash'); 
+          c.classList.toggle('stopped', j === candidateIdx); 
+        });
+        
+        // 模拟点击“确定选择”按钮，卡片变绿
+        confirmBtn.disabled = false; 
+        confirmBtn.click(); 
+        await new Promise(r => setTimeout(r, 80));
+        
+        return { picked: rows[idx].name, stateNow: state };
       }
       case 'send_message_to_student': {
         if (!rows || rows.length === 0) return { error: '尚未加载名单' };
@@ -2845,7 +2884,7 @@ async function sendAgentMessage() {
   document.querySelector('.ai-agent-send').disabled = true;
 
   try {
-    const sysPrompt = `你是课堂互动助教。工具：get_classroom_state, pick_random_student, pick_student_by_name, mark_answer_correct, mark_answer_wrong, query_students, query_chapter_performance, send_message_to_student。规则：1.必须先调工具获取数据，不许编造。2.口语化回答，不要说太长。`;
+    const sysPrompt = `你是课堂互动助教。工具：get_classroom_state, pick_random_student, pick_student_by_name, pick_unpicked_student, mark_answer_correct, mark_answer_wrong, query_students, query_chapter_performance, send_message_to_student。规则：1.必须先调工具获取数据，不许编造。2.口语化回答，不要说太长。`;
     let history = loadAgentHistory();
     const messages = [{ role: 'system', content: sysPrompt }, ...history, { role: 'user', content: text }];
     
