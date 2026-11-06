@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     
     try {
       const body = await req.json();
-      const apiKey = Deno.env.get('classroom-cloud');
+      const apiKey = Deno.env.get('zhinengketangcloud');
       
       const resp = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
