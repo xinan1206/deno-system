@@ -2748,6 +2748,30 @@ const AGENT_TOOLS = [
       description: '撤销上一次的操作（比如撤销刚才点错的名字，或者撤销刚才记错的分数）', 
       parameters: { type: 'object', properties: {} } 
     } 
+  },
+  { 
+    type: 'function', 
+    function: { 
+      name: 'get_raise_list', 
+      description: '获取当前举手列表里的学生姓名，按举手时间先后排序', 
+      parameters: { type: 'object', properties: {} } 
+    } 
+  },
+  { 
+    type: 'function', 
+    function: { 
+      name: 'pick_first_raised_student', 
+      description: '直接选中举手列表里排队最靠前（第一个举手）的学生', 
+      parameters: { type: 'object', properties: {} } 
+    } 
+  },
+  { 
+    type: 'function', 
+    function: { 
+      name: 'clear_raise_list', 
+      description: '清空当前举手列表，让列表里所有人消失', 
+      parameters: { type: 'object', properties: {} } 
+    } 
   }
 ];
 
@@ -2762,6 +2786,38 @@ async function executeAgentTool(name, args) {
         undoBtn.click();
         await new Promise(r => setTimeout(r, 100)); // 稍微等一下 UI 反应
         return { ok: true, message: '已成功撤销上一次操作' };
+      }
+      case 'get_raise_list': {
+        if (!currentRaiseMsgs || currentRaiseMsgs.length === 0) {
+          return { list: [], note: '当前没有人举手' };
+        }
+        // 去重并按时间排序
+        const unique = new Map();
+        currentRaiseMsgs.forEach(m => { if (!unique.has(m.studentId)) unique.set(m.studentId, m); });
+        const list = Array.from(unique.values()).sort((a,b) => (a.sendTime||'').localeCompare(b.sendTime||''));
+        return { count: list.length, students: list.map(m => m.studentName) };
+      }
+      case 'pick_first_raised_student': {
+        if (!currentRaiseMsgs || currentRaiseMsgs.length === 0) return { error: '当前没有人举手' };
+        if (!rows || rows.length === 0) return { error: '尚未加载班级名单' };
+        if (state === 'answered') return { error: '当前已有学生答题中' };
+        
+        // 找到最早举手的那个人
+        const sorted = [...currentRaiseMsgs].sort((a,b) => (a.sendTime||'').localeCompare(b.sendTime||''));
+        const firstMsg = sorted[0];
+        const idx = rows.findIndex(s => String(s.id) === String(firstMsg.studentId));
+        
+        if (idx === -1) return { error: '举手的学生不在当前班级名单中' };
+        
+        // 直接触发原版选人逻辑
+        selectRaisedStudent(firstMsg.studentId, firstMsg.sendTime);
+        await new Promise(r => setTimeout(r, 150));
+        return { picked: rows[idx].name, stateNow: state };
+      }
+      case 'clear_raise_list': {
+        clearAllRaise();
+        await new Promise(r => setTimeout(r, 150));
+        return { ok: true, message: '举手列表已全部清空' };
       }
       case 'get_classroom_state': {
         const loaded = rows && rows.length > 0;
@@ -2914,15 +2970,17 @@ async function sendAgentMessage() {
   document.querySelector('.ai-agent-send').disabled = true;
 
   try {
-const sysPrompt = `你是课堂互动助教。可调用的工具：get_classroom_state, pick_random_student, pick_student_by_name, pick_unpicked_student, undo_last_action, mark_answer_correct, mark_answer_wrong, query_students, query_chapter_performance, send_message_to_student。
-
+const sysPrompt = `你是课堂互动助教。可调用的工具：get_classroom_state, pick_random_student, pick_student_by_name, pick_unpicked_student, undo_last_action, mark_answer_correct, mark_answer_wrong, query_students, query_chapter_performance, send_message_to_student, get_raise_list, pick_first_raised_student, clear_raise_list。
 【核心强制规则】：
 1. 无论老师怎么口语化表达（如"选一个"、"点一名"、"找个同学"、"抽个人"），只要你需要决定一个学生，你**必须且只能**调用 pick_random_student 或 pick_unpicked_student 工具！
 2. **绝对不允许**在没有调用工具的情况下，自己编造学生的名字（比如直接说"点到张三"）。如果你没有调用工具，左边的卡片就不会变色，老师会生气的。
 3. 如果老师说"撤销"、"撤回"、"点错了"，调用 undo_last_action。
 4. 如果老师说"对了"、"答对"，调用 mark_answer_correct；"错了"、"答错"，调用 mark_answer_wrong。
 5. 必须先调工具，拿到工具返回的真实结果后，再生成口语化的回答（比如工具返回"picked: 陈思雨"，你再说"点到陈思雨了"）。
-6. 口语化，简短。`;
+6. 口语化，简短。
+7. 如果老师问"谁举手了"、"看看举手名单"，调用 get_raise_list。
+8. 如果老师说"选第一个举手的"、"挑排队最靠前的"，调用 pick_first_raised_student。
+9. 如果老师说"清空举手"、"把举手列表清掉"，调用 clear_raise_list。`;
     let history = loadAgentHistory();
     const messages = [{ role: 'system', content: sysPrompt }, ...history, { role: 'user', content: text }];
     
