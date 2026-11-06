@@ -400,6 +400,17 @@
   }
   .ai-agent-send:hover { filter: brightness(1.1); }
   .ai-agent-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  /* 录音状态按钮动画 */
+  .ai-agent-btn.recording {
+    background: rgba(239, 68, 68, 0.3) !important;
+    color: #ef4444 !important;
+    animation: pulseMic 1.2s infinite;
+  }
+  @keyframes pulseMic {
+    0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+    70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+    100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+  }
 </style>
 </head>
 <body>
@@ -855,6 +866,7 @@
 
 <div class="toast" id="toast"></div>
 <!-- ================== AI 助教浮窗 ================== -->
+
 <div id="ai-agent-panel" class="ai-agent-panel">
   <div class="ai-agent-header" id="ai-agent-header">
     <span class="ai-agent-title">🤖 AI 助教</span>
@@ -873,6 +885,7 @@
     </div>
   </div>
   <div class="ai-agent-input-wrap">
+<button id="ai-agent-mic" class="ai-agent-btn" style="width: 38px; height: 38px; flex-shrink: 0;" onclick="toggleVoiceInput()" title="点击说话">🎤</button>
     <textarea id="ai-agent-input" placeholder="输入指令，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
     <button class="ai-agent-send" onclick="sendAgentMessage()">发送</button>
   </div>
@@ -2985,6 +2998,76 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('mouseup', () => { dragging = false; });
 })();
 handleRoleChange();
+/* ================== AI 语音输入功能 ================== */
+let recognition = null;
+let isRecording = false;
+
+function initVoice() {
+  // 兼容 Chrome, Edge, Safari
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    return null;
+  }
+  const rec = new SpeechRecognition();
+  rec.lang = 'zh-CN'; // 设置为中文
+  rec.continuous = false; // 说完一句自动停止
+  rec.interimResults = false; // 只返回最终结果
+
+  rec.onstart = () => {
+    isRecording = true;
+    const btn = document.getElementById('ai-agent-mic');
+    if (btn) btn.classList.add('recording');
+    toast('🎤 正在聆听，请说话...');
+  };
+
+  rec.onresult = (event) => {
+    const text = event.results[0][0].transcript;
+    const input = document.getElementById('ai-agent-input');
+    if (input) {
+      input.value = text;
+      // 触发 input 事件，这样如果你说了“请发送”，刚才写的自动发送逻辑就会生效
+      input.dispatchEvent(new Event('input'));
+    }
+  };
+
+  rec.onerror = (event) => {
+    console.error('语音识别错误', event.error);
+    if (event.error === 'not-allowed') {
+      toast('请允许浏览器使用麦克风权限', true);
+    } else if (event.error !== 'no-speech') {
+      toast('语音识别失败，请重试', true);
+    }
+  };
+
+  rec.onend = () => {
+    isRecording = false;
+    const btn = document.getElementById('ai-agent-mic');
+    if (btn) btn.classList.remove('recording');
+  };
+
+  return rec;
+}
+
+function toggleVoiceInput() {
+  if (!recognition) {
+    recognition = initVoice();
+  }
+  if (!recognition) {
+    return toast('当前浏览器不支持语音输入，建议使用 Edge 或 Chrome 浏览器', true);
+  }
+
+  if (isRecording) {
+    recognition.stop();
+  } else {
+    // 如果 AI 正在思考，不允许录音
+    if (agentBusy) return toast('AI 正在思考中，请稍候', true);
+    try {
+      recognition.start();
+    } catch (e) {
+      console.warn('重复启动语音', e);
+    }
+  }
+}
 </script>
 </body>
 </html>
