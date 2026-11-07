@@ -161,6 +161,8 @@
   .msg-item-header { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); margin-bottom: 5px; }
   .msg-item-title { font-size: 15px; font-weight: 700; color: #38bdf8; margin-bottom: 5px; }
   .msg-item-preview { font-size: 14px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 附件卡片始终可见，不依赖消息展开 */
+  .msg-attach-inline { margin-top: 8px; cursor: default; }
   .msg-item-detail { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 14px; color: #e2e8f0; line-height: 1.6; }
   .msg-item.expanded .msg-item-detail { display: block; }
   .msg-item.expanded .msg-item-preview { display: none; }
@@ -1839,7 +1841,7 @@ function markMsgRead(key, msgId) {
 }
 async function loadTeacherMsgs() {
   try {
-    const resp = await fetch(API_S_MSG_ALL_URL);
+    const resp = await fetch(API_S_MSG_ALL_URL + '?_=' + Date.now(), { cache: 'no-store' });
     if (resp.ok) {
       const json = await resp.json();
       allSMsgs = json.submissions || [];
@@ -1857,7 +1859,7 @@ async function loadTeacherMsgs() {
 }
 async function loadStudentMsgs() {
   try {
-    const resp = await fetch(API_T_MSG_ALL_URL);
+    const resp = await fetch(API_T_MSG_ALL_URL + '?_=' + Date.now(), { cache: 'no-store' });
     if (resp.ok) {
       const json = await resp.json();
       allTMsgs = json.submissions || [];
@@ -1885,7 +1887,7 @@ async function showMsgList(role) {
   try {
     if (role === 'teacher') {
       title.textContent = '📬 学生留言中心';
-      const resp = await fetch(API_S_MSG_ALL_URL);
+      const resp = await fetch(API_S_MSG_ALL_URL + '?_=' + Date.now(), { cache: 'no-store' });
       const json = await resp.json();
       harvestChunks(json.submissions);
       // ★ 修复：content 类型判断
@@ -1896,7 +1898,7 @@ async function showMsgList(role) {
       readKey = 'read_s2t_' + window.currentTeacher.id;
     } else {
       title.textContent = '📬 教师通知中心';
-      const resp = await fetch(API_T_MSG_ALL_URL);
+      const resp = await fetch(API_T_MSG_ALL_URL + '?_=' + Date.now(), { cache: 'no-store' });
       const json = await resp.json();
       harvestChunks(json.submissions);
       msgs = (json.submissions || []).filter(m => String(m.studentId) === String(window.currentStudent.id));
@@ -1912,23 +1914,37 @@ async function showMsgList(role) {
   container.innerHTML = msgs.map(m => {
     const mId = getMsgId(m);
     const isUnread = !readArr.includes(mId);
-    let header = role === 'teacher' ? `来自：${m.studentName} (${m.className || '未知班级'})` : `来自：${m.teacherName} (教师)`;
+    const rc = renderMsgContent(m.content);
+    let header = role === 'teacher'
+      ? `来自：${escapeHtml(m.studentName || '')} (${escapeHtml(m.className || '未知班级')})`
+      : `来自：${escapeHtml(m.teacherName || '')} (教师)`;
+    // ★ 附件卡片放在主体（始终可见），不再藏在折叠的 detail 里
+    const attachHtml = rc.fileHtml ? `<div class="msg-attach-inline" data-noexpand="1">${rc.fileHtml}</div>` : '';
     return `
-      <div class="msg-item" onclick="handleReadMsg(this, '${role}', '${mId}', '${readKey}')">
+      <div class="msg-item" data-role="${escapeHtml(role)}" data-mid="${escapeHtml(mId)}" data-rk="${escapeHtml(readKey)}">
         ${isUnread ? '<div class="unread-dot"></div>' : ''}
         <div class="msg-item-header">
-          <span>${header} | ${m.sendTime || ''}</span>
-          <span style="color:#38bdf8;font-size:12px;">课程：${m.course || '无'}</span>
+          <span>${header} | ${escapeHtml(m.sendTime || '')}</span>
+          <span style="color:#38bdf8;font-size:12px;">课程：${escapeHtml(m.course || '无')}</span>
         </div>
-        <div class="msg-item-title">${role === 'teacher' ? '学生留言' : '教师通知'}</div>
-        <div class="msg-item-preview">${escapeHtml(renderMsgContent(m.content).text || '[附件]')}</div>
+        <div class="msg-item-title">${role === 'teacher' ? '学生留言' : '教师通知'}${rc.fileHtml ? '<span style="margin-left:8px;font-size:12px;color:#fbbf24;font-weight:600;">📎 含附件</span>' : ''}</div>
+        <div class="msg-item-preview">${escapeHtml(rc.text || (rc.fileHtml ? '（附件消息，见下方下载）' : ''))}</div>
+        ${attachHtml}
         <div class="msg-item-detail">
-          <div style="white-space: pre-wrap;">${escapeHtml(renderMsgContent(m.content).text)}</div>
-          ${renderMsgContent(m.content).fileHtml}
+          <div style="white-space: pre-wrap;">${escapeHtml(rc.text)}</div>
         </div>
       </div>
     `;
   }).join('');
+  // ★ 用事件绑定代替 onclick 内联字符串：
+  //   消息 ID 取自 content 前 10 字符，带附件时 content 是 JSON（含双引号），
+  //   内联进 onclick 会提前闭合 HTML 属性，导致该条消息点击完全无反应、看不到附件。
+  container.querySelectorAll('.msg-item').forEach(el => {
+    el.addEventListener('click', function (ev) {
+      if (ev.target.closest('[data-noexpand]')) return;  // 点附件区不触发展开/折叠
+      handleReadMsg(el, el.dataset.role, el.dataset.mid, el.dataset.rk);
+    });
+  });
 }
 /* ★ 修复：更健壮的解析，兼容对象/字符串，处理 JSON 截断，支持分片引用（ref） */
 function renderMsgContent(rawContent) {
@@ -1984,15 +2000,18 @@ function buildFileHtml(file) {
   const sizeStr = file.size ? ` <span style="color:#94a3b8;font-size:11px;">(${(file.size/1024).toFixed(0)}KB)</span>` : '';
   // ★ 新版：附件数据以分片形式存放，按 ref 拼装后下载
   if (file.ref) {
+    const r = resolveRef(file.ref);
+    const ready = !r.missing && !r.partial;
+    const tip = ready ? '' : `<div style="font-size:11px;color:#fbbf24;margin-top:5px;">⚠️ 附件数据尚未完全加载（${r.got || 0}/${r.total || file.chunks || '?'} 片），点「重新加载」会自动重新获取</div>`;
     return `
-    <div style="margin-top: 8px; padding: 8px 12px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+    <div style="padding: 8px 12px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
       <span style="font-size: 20px;">📎</span>
       <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
         <span style="font-size: 13px; color: #e2e8f0;">${safeName}</span>${sizeStr}
       </div>
-      <a href="javascript:void(0)" onclick="msgFileDownload('${escapeHtml(String(file.ref))}')"
-         style="background: #3b82f6; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 12px; text-decoration: none; font-weight: bold;">下载</a>
-    </div>
+      <a href="javascript:void(0)" onclick="event.stopPropagation();msgFileDownload('${escapeHtml(String(file.ref))}')"
+         style="background: #3b82f6; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 12px; text-decoration: none; font-weight: bold; white-space: nowrap;">${ready ? '下载' : '重新加载'}</a>
+    </div>${tip}
   `;
   }
   if (!file.data) return '';
@@ -2336,7 +2355,7 @@ async function fetchRaiseList() {
       return;
     }
 
-    const resp = await fetch(API_S_MSG_ALL_URL);
+    const resp = await fetch(API_S_MSG_ALL_URL + '?_=' + Date.now(), { cache: 'no-store' });
     if (!resp.ok) return;
     const json = await resp.json();
     const msgs = json.submissions || [];
@@ -3480,9 +3499,12 @@ function resolveRef(ref) {
   const e = REF_STORE.get(String(ref));
   if (!e) return { missing: true };
   const n = e.total || e.pieces.size;
-  if (e.pieces.size < n) return { partial: true, got: e.pieces.size, total: n };
+  // 逐索引检查：只看 Map.size 会把「有重复片 + 缺片」误判成完整
+  for (let i = 0; i < n; i++) {
+    if (!e.pieces.has(i)) return { partial: true, got: e.pieces.size, total: n };
+  }
   let s = '';
-  for (let i = 0; i < n; i++) s += (e.pieces.get(i) || '');
+  for (let i = 0; i < n; i++) s += e.pieces.get(i);
   if (e.enc === 'b64') {
     try { s = b64Utf8ToStr(s); } catch (err) { return { missing: true }; }
   }
@@ -3520,9 +3542,29 @@ function base64ToBuf(b64) {
 
 // 附件下载（新版分片格式）：拼装 -> 解码 -> 解压 -> 保存
 window.msgFileDownload = async function(ref) {
-  const r = resolveRef(ref);
-  if (r.missing) { toast('附件分片尚未加载，请刷新消息列表后重试', true); return; }
-  if (r.partial) { toast('附件分片不完整（' + r.got + '/' + r.total + '），请刷新后重试', true); return; }
+  let r = resolveRef(ref);
+  // ★ 分片未就绪时自动重新拉取（免缓存），补进 REF_STORE，学生无需手动刷新
+  if (r.missing || r.partial) {
+    toast('附件数据未就绪，正在重新加载...');
+    await Promise.all([API_T_MSG_ALL_URL, API_S_MSG_ALL_URL].map(async u => {
+      try {
+        const resp = await fetch(u + '?_=' + Date.now(), { cache: 'no-store' });
+        if (resp.ok) harvestChunks((await resp.json()).submissions || []);
+      } catch (e) { /* 单个接口失败不影响另一个 */ }
+    }));
+    r = resolveRef(ref);
+  }
+  if (r.missing || r.partial) {
+    toast(`附件数据不完整（${r.got || 0}/${r.total || '?'} 片），请稍后重新打开消息中心再试`, true);
+    return;
+  }
+  // 数据已就绪：把卡片上的「重新加载」恢复成「下载」
+  document.querySelectorAll('.msg-attach-inline').forEach(box => {
+    if (box.innerHTML.indexOf(String(ref)) !== -1) {
+      const a = box.querySelector('a'); if (a) a.textContent = '下载';
+      box.querySelectorAll('div').forEach(d => { if (d.textContent.indexOf('附件数据尚未完全加载') !== -1) d.remove(); });
+    }
+  });
   let fileObj;
   try { fileObj = JSON.parse(r.text); } catch (e) { toast('附件数据损坏，无法下载', true); return; }
   try {
