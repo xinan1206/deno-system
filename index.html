@@ -656,11 +656,11 @@
         <input type="file" id="t-msg-file" style="display: none;" onchange="handleFileSelect(this, 't')">
         <span id="t-msg-file-name" style="font-size: 13px; color: #38bdf8; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
       </div>
-      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">建议附件小于 150KB（受服务端字段长度限制）</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">附件自动压缩并分片上传，建议小于 500KB（压缩后超过约 50KB 将拒收）</div>
     </div>
     <div class="modal-btn-group">
       <button class="close-btn" onclick="document.getElementById('teacher-send-msg-modal').classList.remove('show')">取消</button>
-      <button class="btn primary" onclick="submitTeacherMsg()">发送</button>
+      <button class="btn primary" id="t-msg-send-btn" onclick="submitTeacherMsg()">发送</button>
     </div>
   </div>
 </div>
@@ -846,11 +846,11 @@
         <input type="file" id="s-msg-file" style="display: none;" onchange="handleFileSelect(this, 's')">
         <span id="s-msg-file-name" style="font-size: 13px; color: #38bdf8; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
       </div>
-      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">建议附件小于 150KB（受服务端字段长度限制）</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">附件自动压缩并分片上传，建议小于 500KB（压缩后超过约 50KB 将拒收）</div>
     </div>
     <div class="modal-btn-group">
       <button class="close-btn" onclick="document.getElementById('student-send-msg-modal').classList.remove('show')">取消</button>
-      <button class="btn primary" onclick="submitStudentMsg()">发送</button>
+      <button class="btn primary" id="s-msg-send-btn" onclick="submitStudentMsg()">发送</button>
     </div>
   </div>
 </div>
@@ -1843,6 +1843,7 @@ async function loadTeacherMsgs() {
     if (resp.ok) {
       const json = await resp.json();
       allSMsgs = json.submissions || [];
+      harvestChunks(allSMsgs);
       const myMsgs = allSMsgs.filter(m => String(m.teacherId) === String(window.currentTeacher.id));
       const readArr = getReadMsgs('read_s2t_' + window.currentTeacher.id);
       // ★ 修复：content 可能不是字符串，先做类型判断
@@ -1860,6 +1861,7 @@ async function loadStudentMsgs() {
     if (resp.ok) {
       const json = await resp.json();
       allTMsgs = json.submissions || [];
+      harvestChunks(allTMsgs);
       const myMsgs = allTMsgs.filter(m => String(m.studentId) === String(window.currentStudent.id));
       const readArr = getReadMsgs('read_t2s_' + window.currentStudent.id);
       const unread = myMsgs.filter(m => !readArr.includes(getMsgId(m)));
@@ -1885,6 +1887,7 @@ async function showMsgList(role) {
       title.textContent = '📬 学生留言中心';
       const resp = await fetch(API_S_MSG_ALL_URL);
       const json = await resp.json();
+      harvestChunks(json.submissions);
       // ★ 修复：content 类型判断
       msgs = (json.submissions || []).filter(m => {
         const c = typeof m.content === 'string' ? m.content : '';
@@ -1895,6 +1898,7 @@ async function showMsgList(role) {
       title.textContent = '📬 教师通知中心';
       const resp = await fetch(API_T_MSG_ALL_URL);
       const json = await resp.json();
+      harvestChunks(json.submissions);
       msgs = (json.submissions || []).filter(m => String(m.studentId) === String(window.currentStudent.id));
       readKey = 'read_t2s_' + window.currentStudent.id;
     }
@@ -1926,8 +1930,15 @@ async function showMsgList(role) {
     `;
   }).join('');
 }
-/* ★ 修复：更健壮的解析，兼容对象/字符串，处理 JSON 截断 */
+/* ★ 修复：更健壮的解析，兼容对象/字符串，处理 JSON 截断，支持分片引用（ref） */
 function renderMsgContent(rawContent) {
+  // ★ 新增：分片引用消息（大内容/附件），先按 ref 拼装出真实内容
+  if (rawContent && typeof rawContent === 'object' && rawContent.ref) {
+    const r = resolveRef(rawContent.ref);
+    if (r.missing) return { text: '（大内容消息，分片数据未加载，请刷新消息列表）', fileHtml: '' };
+    if (r.partial) return { text: `（大内容消息传输未完成 ${r.got}/${r.total} 片，请稍后刷新重试）`, fileHtml: '' };
+    rawContent = r.text;
+  }
   // 兼容后端返回对象的情况
   if (rawContent && typeof rawContent === 'object') {
     if (rawContent.file) {
@@ -1941,13 +1952,17 @@ function renderMsgContent(rawContent) {
   if (trimmed.startsWith('{')) {
     try {
       const obj = JSON.parse(trimmed);
-      if (obj.file && obj.file.data) {
+      if (obj.ref) {
+        // 嵌套引用：整条消息内容被分片存放
+        return renderMsgContent(obj);
+      }
+      if (obj.file && (obj.file.data || obj.file.ref)) {
         text = obj.text || '';
         fileHtml = buildFileHtml(obj.file);
       } else if (obj.file) {
-        // 有 file 但没有 data —— 大概率被截断
+        // 有 file 但没有 data/ref —— 大概率被截断
         text = obj.text || '';
-        fileHtml = `<div style="color:#f87171;font-size:12px;margin-top:6px;padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;">⚠️ 附件「${escapeHtml(obj.file.name || '未知')}」数据不完整（可能超过服务端长度限制），无法下载。请让发送方换用更小的文件。</div>`;
+        fileHtml = `<div style="color:#f87171;font-size:12px;margin-top:6px;padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;">⚠️ 附件「${escapeHtml(obj.file.name || '未知')}」数据不完整，无法下载。</div>`;
       } else {
         text = obj.text || '';
       }
@@ -1955,7 +1970,7 @@ function renderMsgContent(rawContent) {
       // JSON 解析失败 —— 可能被截断
       if (trimmed.includes('"file"') && trimmed.includes('"data"')) {
         text = trimmed.substring(0, 200) + '...（内容不完整）';
-        fileHtml = `<div style="color:#f87171;font-size:12px;margin-top:6px;padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;">⚠️ 附件数据损坏或不完整，无法下载。可能文件过大超过了服务端字段限制。</div>`;
+        fileHtml = `<div style="color:#f87171;font-size:12px;margin-top:6px;padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;">⚠️ 附件数据损坏或不完整，无法下载。</div>`;
       }
       // 否则当普通文本
     }
@@ -1964,13 +1979,28 @@ function renderMsgContent(rawContent) {
 }
 
 function buildFileHtml(file) {
-  if (!file || !file.data) return '';
+  if (!file) return '';
   const safeName = escapeHtml(file.name || '附件');
+  const sizeStr = file.size ? ` <span style="color:#94a3b8;font-size:11px;">(${(file.size/1024).toFixed(0)}KB)</span>` : '';
+  // ★ 新版：附件数据以分片形式存放，按 ref 拼装后下载
+  if (file.ref) {
+    return `
+    <div style="margin-top: 8px; padding: 8px 12px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 20px;">📎</span>
+      <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        <span style="font-size: 13px; color: #e2e8f0;">${safeName}</span>${sizeStr}
+      </div>
+      <a href="javascript:void(0)" onclick="msgFileDownload('${escapeHtml(String(file.ref))}')"
+         style="background: #3b82f6; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 12px; text-decoration: none; font-weight: bold;">下载</a>
+    </div>
+  `;
+  }
+  if (!file.data) return '';
   return `
     <div style="margin-top: 8px; padding: 8px 12px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
       <span style="font-size: 20px;">📎</span>
       <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-        <span style="font-size: 13px; color: #e2e8f0;">${safeName}</span>
+        <span style="font-size: 13px; color: #e2e8f0;">${safeName}</span>${sizeStr}
       </div>
       <a href="${file.data}" download="${safeName}" target="_blank"
          style="background: #3b82f6; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 12px; text-decoration: none; font-weight: bold;">下载</a>
@@ -2053,38 +2083,43 @@ async function submitTeacherMsg() {
   if (checked.length === 0) return toast('请至少选择一名学生', true);
   if (!text && !tMsgFileData) return toast('请输入消息或添加附件', true);
 
-  // ★ 打包内容
-  let content = text;
-  if (tMsgFileData) {
-    content = JSON.stringify({ text: text, file: tMsgFileData });
-  }
+  const btn = document.getElementById('t-msg-send-btn');
+  const oldTxt = btn ? btn.textContent : '发送';
+  if (btn) { btn.disabled = true; btn.textContent = '发送中...'; }
 
-  // ★ 提前检查 content 长度（后端通常有上限）
-  const contentBytes = new Blob([content]).size;
-  if (contentBytes > 1024 * 1024) {
-    return toast(`内容过大（${(contentBytes/1024).toFixed(0)}KB），请减小附件或改用其他方式传输`, true);
-  }
-
-  const promises = [];
-  checked.forEach(cb => {
-    const payload = {
-      teacherId: window.currentTeacher.id, teacherName: window.currentTeacher.name,
-      studentId: cb.value, studentName: cb.getAttribute('data-name'),
-      className: clsName, course: course, content: content, sendTime: nowStr()
-    };
-    promises.push(fetch(API_T_MSG_URL, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) }));
-  });
-  
   try {
-    // ★ 修复：逐条检查响应
-    const results = await Promise.allSettled(promises);
-    let okCount = 0, failCount = 0;
-    results.forEach(r => {
-      if (r.status === 'fulfilled' && r.value.ok) okCount++;
-      else failCount++;
+    // ★ 附件以分片方式上传一次（不论发给几个学生），消息记录只带引用
+    let content;
+    if (tMsgFileData) {
+      toast('正在上传附件分片，请稍候...', false);
+      const up = await uploadChunkedString(API_T_MSG_URL, JSON.stringify(tMsgFileData), { ft: '1' },
+        (d, t) => { if (btn) btn.textContent = `上传附件 ${d}/${t}`; });
+      content = JSON.stringify({ text: text, file: { name: tMsgFileData.name, type: tMsgFileData.type, size: tMsgFileData.size, ref: up.ref, chunks: up.total } });
+    } else {
+      content = text;
+    }
+    // ★ 兜底：内容（如长文本+附件组合）仍超单字段上限时，整体也走分片
+    if (utf8Len(content) > CHUNK_FIELD_SAFE) {
+      const up2 = await uploadChunkedString(API_T_MSG_URL, content, {},
+        (d, t) => { if (btn) btn.textContent = `上传内容 ${d}/${t}`; });
+      content = JSON.stringify({ ref: up2.ref, preview: text.slice(0, 60) });
+    }
+
+    // 给每个选中学生写一条消息记录（小记录，可直发）
+    const promises = [];
+    checked.forEach(cb => {
+      const payload = {
+        teacherId: window.currentTeacher.id, teacherName: window.currentTeacher.name,
+        studentId: cb.value, studentName: cb.getAttribute('data-name'),
+        className: clsName, course: course, content: content, sendTime: nowStr()
+      };
+      promises.push(() => postChunk(API_T_MSG_URL, payload, 2));
     });
+    const results = await Promise.allSettled(promises.map(p => p()));
+    let okCount = 0, failCount = 0;
+    results.forEach(r => { if (r.status === 'fulfilled' && r.value) okCount++; else failCount++; });
     if (failCount > 0) {
-      toast(`⚠️ ${okCount} 成功，${failCount} 失败（可能内容过大或网络问题）`, true);
+      toast(`⚠️ ${okCount} 成功，${failCount} 失败（网络波动），请重发失败部分`, true);
     } else {
       toast('✅ 消息发送成功');
       document.getElementById('teacher-send-msg-modal').classList.remove('show');
@@ -2092,7 +2127,11 @@ async function submitTeacherMsg() {
       document.getElementById('t-msg-file').value = '';
       document.getElementById('t-msg-file-name').textContent = '';
     }
-  } catch (e) { toast('发送失败：' + e.message, true); }
+  } catch (e) {
+    toast('发送失败：' + e.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = oldTxt; }
+  }
 }
 /* ================== 发送消息 (学生端) ================== */
 let teacherSelectComp = null;
@@ -2171,18 +2210,6 @@ async function submitStudentMsg() {
 
   const text = document.getElementById('s-msg-content').value.trim();
 
-  // ★ 打包内容
-  let content = text;
-  if (sMsgFileData) {
-    content = JSON.stringify({ text: text, file: sMsgFileData });
-  }
-
-  // ★ 提前检查 content 长度
-  const contentBytes = new Blob([content]).size;
-  if (contentBytes > 1024 * 1024) {
-    return toast(`内容过大（${(contentBytes/1024).toFixed(0)}KB），请减小附件`, true);
-  }
-
   // 提取教师姓名（去掉工号部分）
   let teacherName = tSelected.label;
   if (teacherName.includes('(')) {
@@ -2191,21 +2218,40 @@ async function submitStudentMsg() {
     teacherName = teacherName.split('（')[0].trim();
   }
 
-    const payload = {
-    teacherId: tSelected.value,
-    teacherName: teacherName,
-    studentId: window.currentStudent.id,
-    studentName: window.currentStudent.name,
-    className: window.currentStudent.className, // 👈 补上这一行
-    course: cSelected.value,
-    content: content,
-    sendTime: nowStr()
-  };
-  
+    const baseInfo = {
+      teacherId: tSelected.value,
+      teacherName: teacherName,
+      studentId: window.currentStudent.id,
+      studentName: window.currentStudent.name,
+      className: window.currentStudent.className, // 👈 补上这一行
+      course: cSelected.value
+    };
+
+  const btn = document.getElementById('s-msg-send-btn');
+  const oldTxt = btn ? btn.textContent : '发送';
+  if (btn) { btn.disabled = true; btn.textContent = '发送中...'; }
+
   try {
-    const resp = await fetch(API_S_MSG_URL, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    if (!resp.ok) {
-      toast(`发送失败（HTTP ${resp.status}），可能内容过大`, true);
+    let content;
+    if (sMsgFileData) {
+      toast('正在上传附件分片，请稍候...', false);
+      const up = await uploadChunkedString(API_S_MSG_URL, JSON.stringify(sMsgFileData), { ft: '1' },
+        (d, t) => { if (btn) btn.textContent = `上传附件 ${d}/${t}`; });
+      content = JSON.stringify({ text: text, file: { name: sMsgFileData.name, type: sMsgFileData.type, size: sMsgFileData.size, ref: up.ref, chunks: up.total } });
+    } else {
+      content = text;
+    }
+    if (utf8Len(content) > CHUNK_FIELD_SAFE) {
+      const up2 = await uploadChunkedString(API_S_MSG_URL, content, {},
+        (d, t) => { if (btn) btn.textContent = `上传内容 ${d}/${t}`; });
+      content = JSON.stringify({ ref: up2.ref, preview: text.slice(0, 60) });
+    }
+
+    baseInfo.content = content;
+    baseInfo.sendTime = nowStr();
+    const ok = await postChunk(API_S_MSG_URL, baseInfo, 2);
+    if (!ok) {
+      toast('发送失败（HTTP 422/网络错误），请重试', true);
       return;
     }
     toast('✅ 留言发送成功');
@@ -2213,8 +2259,10 @@ async function submitStudentMsg() {
     sMsgFileData = null;
     document.getElementById('s-msg-file').value = '';
     document.getElementById('s-msg-file-name').textContent = '';
-  } catch (e) { 
-    toast('发送失败：' + e.message, true); 
+  } catch (e) {
+    toast('发送失败：' + e.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = oldTxt; }
   }
 }
 /* ================== 学生举手 ================== */
@@ -3298,31 +3346,168 @@ function toggleVoiceInput() {
     }
   }
 }
+/* ================== 大内容分片传输 ==================
+ * 服务端限制（实测）：每个字段值必须 < 512 字节，超过直接返回 HTTP 422。
+ * 因此附件（Base64 后十几 KB）无法单条发送。
+ * 方案：把大内容切成多个小分片记录上传（每片 ≤120 字符 ≈ 480B），
+ * 接收端按 ref 号重新拼装，体验与原来一致。 */
+const CHUNK_CHAR_SIZE = 120;      // 每片最大字符数（中文3字节/emoji≈2字节每字符，≤480B，低于512B上限）
+const CHUNK_MAX_PIECES = 600;     // 单条内容最多分片数（约可传 50KB 附件）
+const CHUNK_FIELD_SAFE = 450;     // content 字段直接发送的安全字节数
+let REF_STORE = new Map();        // ref -> { pieces: Map(i->str), total }
+
+function utf8Len(s) { return new Blob([s]).size; }
+function genRefId() { return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+// 单条分片上传：失败自动重试（服务端偶发限流 422，指数退避可解决）
+async function postChunk(endpoint, body, retries) {
+  retries = (retries === undefined) ? 3 : retries;
+  for (let a = 0; a <= retries; a++) {
+    try {
+      const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (r.ok) return true;
+    } catch (e) { /* 网络错误进入重试 */ }
+    if (a < retries) await new Promise(res => setTimeout(res, 500 * Math.pow(2, a)));
+  }
+  return false;
+}
+
+// 把大字符串切片上传（每片一条记录），任一片重试后仍失败则抛错
+async function uploadChunkedString(endpoint, str, meta, onProgress) {
+  const pieces = [];
+  for (let i = 0; i < str.length; i += CHUNK_CHAR_SIZE) pieces.push(str.slice(i, i + CHUNK_CHAR_SIZE));
+  if (pieces.length > CHUNK_MAX_PIECES) {
+    throw new Error('内容过大（超过约' + Math.round(CHUNK_MAX_PIECES * CHUNK_CHAR_SIZE / 1024) + 'KB），请压缩后再试');
+  }
+  const ref = genRefId();
+  const total = pieces.length;
+  // 并发池：限制同时 5 个请求，配合重试避免触发服务端限流
+  const results = [];
+  let done = 0;
+  const queue = pieces.map((p, i) => () => postChunk(endpoint, Object.assign({
+    _t: 'c', ref: ref, i: String(i), n: String(total), d: p, ts: nowStr()
+  }, meta || {}), 3));
+  const workers = Array.from({ length: Math.min(5, queue.length) }, async () => {
+    while (queue.length) {
+      const t = queue.shift();
+      results.push(await t());
+      done++;
+      if (onProgress && done % 10 === 0) onProgress(done, total);
+    }
+  });
+  await Promise.all(workers);
+  const fails = results.filter(ok => !ok).length;
+  if (fails > 0) throw new Error('分片上传不完整（' + (total - fails) + '/' + total + ' 成功），网络波动，请重试');
+  return { ref: ref, total: total };
+}
+
+// 从接口返回的记录里收集分片（收端）
+function harvestChunks(submissions) {
+  if (!Array.isArray(submissions)) return;
+  submissions.forEach(m => {
+    if (m && m._t === 'c' && m.ref && typeof m.d === 'string') {
+      let e = REF_STORE.get(m.ref);
+      if (!e) { e = { pieces: new Map(), total: parseInt(m.n, 10) || 0 }; REF_STORE.set(m.ref, e); }
+      if (m.n && !e.total) e.total = parseInt(m.n, 10);
+      e.pieces.set(parseInt(m.i, 10), m.d);
+    }
+  });
+}
+
+// 按 ref 拼装完整内容
+function resolveRef(ref) {
+  const e = REF_STORE.get(String(ref));
+  if (!e) return { missing: true };
+  const n = e.total || e.pieces.size;
+  if (e.pieces.size < n) return { partial: true, got: e.pieces.size, total: n };
+  let s = '';
+  for (let i = 0; i < n; i++) s += (e.pieces.get(i) || '');
+  return { text: s };
+}
+
+/* ---- 压缩/编码工具 ---- */
+async function gzipBuffer(buf) {
+  if (typeof CompressionStream === 'undefined') return { buf: buf, gz: false };
+  try {
+    const cs = new CompressionStream('gzip');
+    const stream = new Blob([buf]).stream().pipeThrough(cs);
+    const out = await new Response(stream).arrayBuffer();
+    return { buf: out, gz: true };
+  } catch (e) { return { buf: buf, gz: false }; }
+}
+async function gunzipBuffer(buf) {
+  const ds = new DecompressionStream('gzip');
+  const stream = new Blob([buf]).stream().pipeThrough(ds);
+  return await new Response(stream).arrayBuffer();
+}
+function bufToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  const STEP = 0x8000;
+  for (let i = 0; i < bytes.length; i += STEP) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + STEP));
+  return btoa(bin);
+}
+async function base64ToBuf(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+// 附件下载（新版分片格式）：拼装 -> 解码 -> 解压 -> 保存
+window.msgFileDownload = async function(ref) {
+  const r = resolveRef(ref);
+  if (r.missing) { toast('附件分片尚未加载，请刷新消息列表后重试', true); return; }
+  if (r.partial) { toast('附件分片不完整（' + r.got + '/' + r.total + '），请刷新后重试', true); return; }
+  let fileObj;
+  try { fileObj = JSON.parse(r.text); } catch (e) { toast('附件数据损坏，无法下载', true); return; }
+  try {
+    toast('正在准备下载...');
+    const b64 = String(fileObj.data || '').split(',').pop() || '';
+    let out = await base64ToBuf(b64);
+    if (fileObj.gz) out = await gunzipBuffer(out);
+    const blob = new Blob([out], { type: fileObj.type || 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileObj.name || '附件';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    toast('✅ 附件已下载');
+  } catch (e) { toast('下载失败：' + e.message, true); }
+};
+
 /* ================== 附件发送功能 ================== */
 let tMsgFileData = null;
 let sMsgFileData = null;
 
-function handleFileSelect(input, prefix) {
+async function handleFileSelect(input, prefix) {
   const file = input.files[0];
   if (!file) return;
 
-  // ★ 修复：限制文件大小为 150KB（Base64 会膨胀 ~33%，后端 content 字段通常有上限）
-  const MAX_SIZE = 150 * 1024;
+  const MAX_SIZE = 2 * 1024 * 1024; // 原始文件上限 2MB（实际受压缩后大小限制）
   if (file.size > MAX_SIZE) {
-    toast(`文件过大（${(file.size/1024).toFixed(0)}KB），请选择小于 ${MAX_SIZE/1024}KB 的文件。建议先压缩或改用其他方式发送。`, true);
+    toast(`文件过大（${(file.size/1024).toFixed(0)}KB），请选择小于 2MB 的文件`, true);
     input.value = '';
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const base64Str = e.target.result;
+  toast('正在读取并压缩附件...');
+  try {
+    const buf = await file.arrayBuffer();
+    const { buf: gzBuf, gz } = await gzipBuffer(buf);
+    const b64 = bufToBase64(gzBuf);
+    if (b64.length > CHUNK_MAX_PIECES * CHUNK_CHAR_SIZE - 2000) {
+      toast(`附件压缩后仍过大（约${Math.round(b64.length*3/4/1024)}KB），超过传输上限（约50KB），请压缩后重试`, true);
+      input.value = '';
+      return;
+    }
     const fileInfo = {
       name: file.name,
       type: file.type || 'application/octet-stream',
-      data: base64Str
+      size: file.size,
+      gz: gz ? 1 : 0,
+      data: 'data:application/octet-stream;base64,' + b64
     };
-    
     if (prefix === 't') {
       tMsgFileData = fileInfo;
       document.getElementById('t-msg-file-name').textContent = file.name + ` (${(file.size/1024).toFixed(0)}KB)`;
@@ -3330,12 +3515,10 @@ function handleFileSelect(input, prefix) {
       sMsgFileData = fileInfo;
       document.getElementById('s-msg-file-name').textContent = file.name + ` (${(file.size/1024).toFixed(0)}KB)`;
     }
-    toast('✅ 附件读取成功');
-  };
-  reader.onerror = function() {
-    toast('附件读取失败', true);
-  };
-  reader.readAsDataURL(file);
+    toast('✅ 附件就绪（已压缩，将分片上传）');
+  } catch (e) {
+    toast('附件读取失败：' + e.message, true);
+  }
 }
 </script>
 </body>
