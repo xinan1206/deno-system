@@ -656,7 +656,7 @@
         <input type="file" id="t-msg-file" style="display: none;" onchange="handleFileSelect(this, 't')">
         <span id="t-msg-file-name" style="font-size: 13px; color: #38bdf8; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
       </div>
-      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">附件自动压缩并分片上传，建议小于 500KB（压缩后超过约 50KB 将拒收）</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">附件自动压缩、编码后分片上传（约 75KB 以内，原文件建议小于 500KB）</div>
     </div>
     <div class="modal-btn-group">
       <button class="close-btn" onclick="document.getElementById('teacher-send-msg-modal').classList.remove('show')">取消</button>
@@ -846,7 +846,7 @@
         <input type="file" id="s-msg-file" style="display: none;" onchange="handleFileSelect(this, 's')">
         <span id="s-msg-file-name" style="font-size: 13px; color: #38bdf8; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
       </div>
-      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">附件自动压缩并分片上传，建议小于 500KB（压缩后超过约 50KB 将拒收）</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">附件自动压缩、编码后分片上传（约 75KB 以内，原文件建议小于 500KB）</div>
     </div>
     <div class="modal-btn-group">
       <button class="close-btn" onclick="document.getElementById('student-send-msg-modal').classList.remove('show')">取消</button>
@@ -2098,11 +2098,11 @@ async function submitTeacherMsg() {
     } else {
       content = text;
     }
-    // ★ 兜底：内容（如长文本+附件组合）仍超单字段上限时，整体也走分片
-    if (utf8Len(content) > CHUNK_FIELD_SAFE) {
+    // ★ 兜底：内容过长或含 WAF 特征串时，整体也走分片编码
+    if (needsChunking(content)) {
       const up2 = await uploadChunkedString(API_T_MSG_URL, content, {},
         (d, t) => { if (btn) btn.textContent = `上传内容 ${d}/${t}`; });
-      content = JSON.stringify({ ref: up2.ref, preview: text.slice(0, 60) });
+      content = JSON.stringify({ ref: up2.ref, preview: text.slice(0, 60).replace(/data:[^;]{0,120};base64,/gi, '') });
     }
 
     // 给每个选中学生写一条消息记录（小记录，可直发）
@@ -2241,10 +2241,10 @@ async function submitStudentMsg() {
     } else {
       content = text;
     }
-    if (utf8Len(content) > CHUNK_FIELD_SAFE) {
+    if (needsChunking(content)) {
       const up2 = await uploadChunkedString(API_S_MSG_URL, content, {},
         (d, t) => { if (btn) btn.textContent = `上传内容 ${d}/${t}`; });
-      content = JSON.stringify({ ref: up2.ref, preview: text.slice(0, 60) });
+      content = JSON.stringify({ ref: up2.ref, preview: text.slice(0, 60).replace(/data:[^;]{0,120};base64,/gi, '') });
     }
 
     baseInfo.content = content;
@@ -3347,17 +3347,45 @@ function toggleVoiceInput() {
   }
 }
 /* ================== 大内容分片传输 ==================
- * 服务端限制（实测）：每个字段值必须 < 512 字节，超过直接返回 HTTP 422。
- * 因此附件（Base64 后十几 KB）无法单条发送。
- * 方案：把大内容切成多个小分片记录上传（每片 ≤120 字符 ≈ 480B），
- * 接收端按 ref 号重新拼装，体验与原来一致。 */
-const CHUNK_CHAR_SIZE = 120;      // 每片最大字符数（中文3字节/emoji≈2字节每字符，≤480B，低于512B上限）
-const CHUNK_MAX_PIECES = 600;     // 单条内容最多分片数（约可传 50KB 附件）
+ * 服务端限制（实测）：
+ *  1) 每个字段值必须 < 512 字节，超过直接 422；
+ *  2) WAF 会拦截形如 data:xxx;base64, 的字符串（data URI），含该串的字段一律 422。
+ * 方案：内容统一做 Base64 编码（编码后只有 A-Za-z0-9+/=，不可能触发 WAF），
+ * 再按 480 字节切成小分片记录上传，收端按 ref 拼装并解码。
+ * 上传完成后还会拉一次 /all 校验完整性，自动补传缺失片。 */
+const CHUNK_BYTE_SIZE = 480;      // 每片最大字节数（低于 512B 上限，留余量）
+const CHUNK_MAX_PIECES = 400;     // 单条内容最多分片数
 const CHUNK_FIELD_SAFE = 450;     // content 字段直接发送的安全字节数
-let REF_STORE = new Map();        // ref -> { pieces: Map(i->str), total }
+let REF_STORE = new Map();        // ref -> { pieces: Map(i->str), total, enc }
 
 function utf8Len(s) { return new Blob([s]).size; }
 function genRefId() { return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+// 短内容若含 data URI 特征串，也必须走分片编码，避免被 WAF 拦截
+function needsChunking(content) {
+  return utf8Len(content) > CHUNK_FIELD_SAFE || /data:[^;]{0,120};base64,/i.test(content);
+}
+
+/* ---- UTF-8 <-> Base64（同步，渲染时可放心调用） ---- */
+function strToB64Utf8(str) {
+  return bufToBase64(new TextEncoder().encode(str));
+}
+function b64Utf8ToStr(b64) {
+  const bytes = base64ToBuf(b64);
+  return new TextDecoder().decode(new Uint8Array(bytes));
+}
+// 按 UTF-8 字节数切分，保证每片 < 512B
+function splitByUtf8Bytes(str, maxBytes) {
+  const out = [];
+  let cur = '', bytes = 0;
+  for (const ch of str) {
+    const cp = ch.codePointAt(0);
+    const b = cp <= 0x7f ? 1 : cp <= 0x7ff ? 2 : cp <= 0xffff ? 3 : 4;
+    if (bytes + b > maxBytes && cur) { out.push(cur); cur = ''; bytes = 0; }
+    cur += ch; bytes += b;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
 
 // 单条分片上传：失败自动重试（服务端偶发限流 422，指数退避可解决）
 async function postChunk(endpoint, body, retries) {
@@ -3372,32 +3400,64 @@ async function postChunk(endpoint, body, retries) {
   return false;
 }
 
-// 把大字符串切片上传（每片一条记录），任一片重试后仍失败则抛错
+// 上传后校验：拉 /all 检查每片是否真的落库，缺哪片补哪片（最多 4 轮）
+async function verifyAndRepairChunks(endpoint, ref, pieces, onProgress) {
+  const allUrl = endpoint + '/all';
+  for (let round = 0; round < 4; round++) {
+    await new Promise(r => setTimeout(r, 700 + round * 600));
+    let list = [];
+    try {
+      const resp = await fetch(allUrl + '?_=' + Date.now(), { cache: 'no-store' });
+      if (resp.ok) list = (await resp.json()).submissions || [];
+    } catch (e) { /* 拉取失败则下一轮再试 */ }
+    const have = new Set();
+    list.forEach(m => {
+      if (m && m._t === 'c' && m.ref === ref && typeof m.d === 'string') {
+        const i = parseInt(m.i, 10);
+        if (!isNaN(i) && m.d === pieces[i]) have.add(i);
+      }
+    });
+    const missing = [];
+    for (let i = 0; i < pieces.length; i++) if (!have.has(i)) missing.push(i);
+    if (missing.length === 0) return true;
+    if (onProgress) onProgress(pieces.length - missing.length, pieces.length);
+    // 顺序补传，避开并发限流
+    for (const i of missing) {
+      await postChunk(endpoint, {
+        _t: 'c', ref: ref, i: String(i), n: String(pieces.length),
+        d: pieces[i], enc: 'b64', ts: nowStr()
+      }, 3);
+    }
+  }
+  return false;
+}
+
+// 把大字符串编码后切片上传，并校验补全；失败抛错
 async function uploadChunkedString(endpoint, str, meta, onProgress) {
-  const pieces = [];
-  for (let i = 0; i < str.length; i += CHUNK_CHAR_SIZE) pieces.push(str.slice(i, i + CHUNK_CHAR_SIZE));
+  // ★ Base64 编码：保证分片内容只含 A-Za-z0-9+/=，绝不触发 WAF 的 data URI 规则
+  const encoded = strToB64Utf8(str);
+  const pieces = splitByUtf8Bytes(encoded, CHUNK_BYTE_SIZE);
   if (pieces.length > CHUNK_MAX_PIECES) {
-    throw new Error('内容过大（超过约' + Math.round(CHUNK_MAX_PIECES * CHUNK_CHAR_SIZE / 1024) + 'KB），请压缩后再试');
+    throw new Error('内容过大（超过约' + Math.round(CHUNK_MAX_PIECES * CHUNK_BYTE_SIZE / 1024) + 'KB），请压缩后再试');
   }
   const ref = genRefId();
   const total = pieces.length;
-  // 并发池：限制同时 5 个请求，配合重试避免触发服务端限流
-  const results = [];
-  let done = 0;
   const queue = pieces.map((p, i) => () => postChunk(endpoint, Object.assign({
-    _t: 'c', ref: ref, i: String(i), n: String(total), d: p, ts: nowStr()
+    _t: 'c', ref: ref, i: String(i), n: String(total), d: p, enc: 'b64', ts: nowStr()
   }, meta || {}), 3));
-  const workers = Array.from({ length: Math.min(5, queue.length) }, async () => {
+  let done = 0;
+  const workers = Array.from({ length: Math.min(4, queue.length) }, async () => {
     while (queue.length) {
-      const t = queue.shift();
-      results.push(await t());
+      await queue.shift()();
       done++;
-      if (onProgress && done % 10 === 0) onProgress(done, total);
+      if (onProgress && (done % 5 === 0 || done === total)) onProgress(done, total);
     }
   });
   await Promise.all(workers);
-  const fails = results.filter(ok => !ok).length;
-  if (fails > 0) throw new Error('分片上传不完整（' + (total - fails) + '/' + total + ' 成功），网络波动，请重试');
+  if (onProgress) onProgress(total, total);
+  // ★ 关键：POST 返回成功不代表真的落库（WAF/限流可能静默拒绝），必须校验
+  const complete = await verifyAndRepairChunks(endpoint, ref, pieces, onProgress);
+  if (!complete) throw new Error('分片校验未通过，可能网络不稳定，请重试');
   return { ref: ref, total: total };
 }
 
@@ -3407,14 +3467,15 @@ function harvestChunks(submissions) {
   submissions.forEach(m => {
     if (m && m._t === 'c' && m.ref && typeof m.d === 'string') {
       let e = REF_STORE.get(m.ref);
-      if (!e) { e = { pieces: new Map(), total: parseInt(m.n, 10) || 0 }; REF_STORE.set(m.ref, e); }
+      if (!e) { e = { pieces: new Map(), total: parseInt(m.n, 10) || 0, enc: m.enc || '' }; REF_STORE.set(m.ref, e); }
       if (m.n && !e.total) e.total = parseInt(m.n, 10);
+      if (m.enc && !e.enc) e.enc = m.enc;
       e.pieces.set(parseInt(m.i, 10), m.d);
     }
   });
 }
 
-// 按 ref 拼装完整内容
+// 按 ref 拼装完整内容（同步解码）
 function resolveRef(ref) {
   const e = REF_STORE.get(String(ref));
   if (!e) return { missing: true };
@@ -3422,6 +3483,9 @@ function resolveRef(ref) {
   if (e.pieces.size < n) return { partial: true, got: e.pieces.size, total: n };
   let s = '';
   for (let i = 0; i < n; i++) s += (e.pieces.get(i) || '');
+  if (e.enc === 'b64') {
+    try { s = b64Utf8ToStr(s); } catch (err) { return { missing: true }; }
+  }
   return { text: s };
 }
 
@@ -3447,7 +3511,7 @@ function bufToBase64(buf) {
   for (let i = 0; i < bytes.length; i += STEP) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + STEP));
   return btoa(bin);
 }
-async function base64ToBuf(b64) {
+function base64ToBuf(b64) {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -3464,7 +3528,7 @@ window.msgFileDownload = async function(ref) {
   try {
     toast('正在准备下载...');
     const b64 = String(fileObj.data || '').split(',').pop() || '';
-    let out = await base64ToBuf(b64);
+    let out = base64ToBuf(b64);
     if (fileObj.gz) out = await gunzipBuffer(out);
     const blob = new Blob([out], { type: fileObj.type || 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
@@ -3496,8 +3560,8 @@ async function handleFileSelect(input, prefix) {
     const buf = await file.arrayBuffer();
     const { buf: gzBuf, gz } = await gzipBuffer(buf);
     const b64 = bufToBase64(gzBuf);
-    if (b64.length > CHUNK_MAX_PIECES * CHUNK_CHAR_SIZE - 2000) {
-      toast(`附件压缩后仍过大（约${Math.round(b64.length*3/4/1024)}KB），超过传输上限（约50KB），请压缩后重试`, true);
+    if (b64.length > 100000) {
+      toast(`附件压缩后仍过大（约${Math.round(b64.length*3/4/1024)}KB），超过传输上限（约75KB），请压缩后重试`, true);
       input.value = '';
       return;
     }
@@ -3506,7 +3570,7 @@ async function handleFileSelect(input, prefix) {
       type: file.type || 'application/octet-stream',
       size: file.size,
       gz: gz ? 1 : 0,
-      data: 'data:application/octet-stream;base64,' + b64
+      data: b64   // ★ 只存纯 Base64，绝不能带 data:xxx;base64, 前缀（会被服务端 WAF 拦截）
     };
     if (prefix === 't') {
       tMsgFileData = fileInfo;
