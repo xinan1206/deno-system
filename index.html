@@ -2138,13 +2138,38 @@ async function openStudentSendMsg() {
   document.getElementById('s-msg-file-name').textContent = '';
 }
 async function submitStudentMsg() {
-  const tSelected = teacherSelectComp ? teacherSelectComp.getSelected() : null;
-  const cSelected = courseSelectComp ? courseSelectComp.getSelected() : null;
-  const text = document.getElementById('s-msg-content').value.trim();
+  // 1. 获取输入框的实际文本
+  const tInputVal = document.getElementById('s-msg-teacher-input').value.trim();
+  const cInputVal = document.getElementById('s-msg-course-input').value.trim();
   
+  // 2. 检查是否有选中的记录，如果没有，尝试用正则从输入框提取
+  let tSelected = teacherSelectComp ? teacherSelectComp.getSelected() : null;
+  let cSelected = courseSelectComp ? courseSelectComp.getSelected() : null;
+
+  // === 新增兜底逻辑 ===
+  // 如果没点选下拉框，但输入框有字，尝试解析（适用于格式：“姓名 (工号)” 或直接是工号）
+  if (!tSelected && tInputVal) {
+    // 尝试匹配括号里的工号
+    const tMatch = tInputVal.match(/\((.*?)\)/);
+    if (tMatch) {
+      tSelected = { value: tMatch[1], label: tInputVal };
+    } else {
+      // 如果没有括号，直接拿输入框当值
+      tSelected = { value: tInputVal, label: tInputVal };
+    }
+  }
+
+  if (!cSelected && cInputVal) {
+    cSelected = { value: cInputVal, label: cInputVal };
+  }
+  // ===================
+
+  // 3. 校验
   if (!tSelected || !tSelected.value) return toast('请选择或搜索指定教师', true);
   if (!cSelected || !cSelected.value) return toast('请选择或搜索指定课程', true);
-  if (!text && !sMsgFileData) return toast('请输入留言或添加附件', true);
+  if (!tInputVal && !sMsgFileData && !document.getElementById('s-msg-content').value.trim()) return toast('请输入留言或添加附件', true);
+
+  const text = document.getElementById('s-msg-content').value.trim();
 
   // ★ 打包内容
   let content = text;
@@ -2158,9 +2183,17 @@ async function submitStudentMsg() {
     return toast(`内容过大（${(contentBytes/1024).toFixed(0)}KB），请减小附件`, true);
   }
 
+  // 提取教师姓名（去掉工号部分）
+  let teacherName = tSelected.label;
+  if (teacherName.includes('(')) {
+    teacherName = teacherName.split('(')[0].trim();
+  } else if (teacherName.includes('（')) {
+    teacherName = teacherName.split('（')[0].trim();
+  }
+
   const payload = {
     teacherId: tSelected.value,
-    teacherName: tSelected.label.split(' (')[0],
+    teacherName: teacherName,
     studentId: window.currentStudent.id,
     studentName: window.currentStudent.name,
     course: cSelected.value,
@@ -2179,7 +2212,9 @@ async function submitStudentMsg() {
     sMsgFileData = null;
     document.getElementById('s-msg-file').value = '';
     document.getElementById('s-msg-file-name').textContent = '';
-  } catch (e) { toast('发送失败：' + e.message, true); }
+  } catch (e) { 
+    toast('发送失败：' + e.message, true); 
+  }
 }
 /* ================== 学生举手 ================== */
 let raiseCooldownTimer = null;
