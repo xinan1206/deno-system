@@ -2815,17 +2815,32 @@ async function executeAgentTool(name, args) {
         if (!rows || rows.length === 0) return { error: '尚未加载班级名单' };
         if (state === 'answered') return { error: '当前已有学生答题中' };
         
-        // 找到最早举手的那个人
-        const sorted = [...currentRaiseMsgs].sort((a,b) => (a.sendTime||'').localeCompare(b.sendTime||''));
-        const firstMsg = sorted[0];
-        const idx = rows.findIndex(s => String(s.id) === String(firstMsg.studentId));
+        // 1. 获取所有举手消息，去重并按时间严格排序
+        const unique = new Map();
+        currentRaiseMsgs.forEach(m => { if (!unique.has(m.studentId)) unique.set(m.studentId, m); });
+        const sorted = Array.from(unique.values()).sort((a,b) => (a.sendTime||'').localeCompare(b.sendTime||''));
         
-        if (idx === -1) return { error: '举手的学生不在当前班级名单中' };
+        // 2. 处理 AI 传来的 index 参数（如果没有传，默认 0 也就是第一个）
+        let targetIdx = 0;
+        if (args.index !== undefined && args.index !== null) {
+          if (args.index === -1 || args.index === 'last') {
+            targetIdx = sorted.length - 1; // 最后一个
+          } else if (typeof args.index === 'number') {
+            targetIdx = Math.max(0, Math.min(args.index, sorted.length - 1)); // 防止越界
+          }
+        }
         
-        // 直接触发原版选人逻辑
-        selectRaisedStudent(firstMsg.studentId, firstMsg.sendTime);
+        const targetMsg = sorted[targetIdx];
+        const stuIdx = rows.findIndex(s => String(s.id) === String(targetMsg.studentId));
+        
+        if (stuIdx === -1) return { error: '举手的学生不在当前班级名单中' };
+        
+        // 3. 直接触发原版选人逻辑（变绿、加次数）
+        selectRaisedStudent(targetMsg.studentId, targetMsg.sendTime);
         await new Promise(r => setTimeout(r, 150));
-        return { picked: rows[idx].name, stateNow: state };
+        
+        const positionText = targetIdx === 0 ? '第1个' : (targetIdx === sorted.length - 1 ? '最后1个' : `第${targetIdx + 1}个`);
+        return { picked: rows[stuIdx].name, position: positionText, stateNow: state };
       }
       case 'clear_raise_list': {
         clearAllRaise();
