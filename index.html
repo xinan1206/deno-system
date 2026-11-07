@@ -2191,11 +2191,12 @@ async function submitStudentMsg() {
     teacherName = teacherName.split('（')[0].trim();
   }
 
-  const payload = {
+    const payload = {
     teacherId: tSelected.value,
     teacherName: teacherName,
     studentId: window.currentStudent.id,
     studentName: window.currentStudent.name,
+    className: window.currentStudent.className, // 👈 补上这一行
     course: cSelected.value,
     content: content,
     sendTime: nowStr()
