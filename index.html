@@ -2741,7 +2741,7 @@ const AGENT_TOOLS = [
   { type: 'function', function: { name: 'query_students', description: '查询学生列表', parameters: { type: 'object', properties: { filter: { type: 'string', enum: ['all', 'weakest', 'strongest'] }, limit: { type: 'number' } } } } },
   { type: 'function', function: { name: 'query_chapter_performance', description: '查询章节成绩', parameters: { type: 'object', properties: { chapter: { type: 'string' } } } } },
   { type: 'function', function: { name: 'send_message_to_student', description: '给学生发消息', parameters: { type: 'object', properties: { studentName: { type: 'string' }, content: { type: 'string' } }, required: ['studentName', 'content'] } } },
-{ 
+  { 
     type: 'function', 
     function: { 
       name: 'pick_unpicked_student', 
@@ -2770,12 +2770,14 @@ const AGENT_TOOLS = [
     function: { 
       name: 'pick_first_raised_student', 
       description: '直接选中举手列表里的学生。如果不传参数，默认选第一个举手的；如果传了 index 参数（比如 0 是第一个，-1 是最后一个），则按索引选。', 
-parameters: { 
-  type: 'object', 
-  properties: { 
-    index: { type: 'number', description: '要选第几个，默认 0' } 
-  } 
-},
+      parameters: { 
+        type: 'object', 
+        properties: { 
+          index: { type: 'number', description: '要选第几个，默认 0' } 
+        } 
+      } 
+    } 
+  },
   { 
     type: 'function', 
     function: { 
