@@ -2274,9 +2274,17 @@ function clearAllRaise() {
         processedRaiseIds.add(m.sendTime + '_' + m.studentId);
       }
     });
-    saveProcessedRaiseIds(processedRaiseIds);
+        saveProcessedRaiseIds(processedRaiseIds);
     lastRaiseSignature = '';
-    fetchRaiseList();
+    
+    // ★ 核心修复：强制清空前端的界面和状态
+    currentRaiseMsgs = [];
+    const container = document.getElementById('raiseListContainer');
+    if (container) container.innerHTML = '<div class="raise-empty">暂无学生举手</div>';
+    document.getElementById('raiseCountBadge').textContent = '0';
+    document.getElementById('minimizedBadge').textContent = '0';
+
+    fetchRaiseList().catch(() => {}); // 再去后台异步拉取一次，以防万一
     toast('✅ 已清空所有举手');
   });
 }
@@ -2761,10 +2769,13 @@ const AGENT_TOOLS = [
     type: 'function', 
     function: { 
       name: 'pick_first_raised_student', 
-      description: '直接选中举手列表里排队最靠前（第一个举手）的学生', 
-      parameters: { type: 'object', properties: {} } 
-    } 
-  },
+      description: '直接选中举手列表里的学生。如果不传参数，默认选第一个举手的；如果传了 index 参数（比如 0 是第一个，-1 是最后一个），则按索引选。', 
+parameters: { 
+  type: 'object', 
+  properties: { 
+    index: { type: 'number', description: '要选第几个，默认 0' } 
+  } 
+},
   { 
     type: 'function', 
     function: { 
